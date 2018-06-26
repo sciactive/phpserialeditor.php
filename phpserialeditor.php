@@ -2,260 +2,298 @@
 /**
  * A serialized PHP value editor.
  *
- * This file helps edit values from a 2be database, which are often
+ * This file helps edit values from a Nymph database, which are often
  * stored as serialized PHP. It's all self contained in this one file, including
  * the graphics.
  *
- * 2be - an Enterprise PHP Application Framework
- * Copyright (C) 2008-2011  Hunter Perrin.
+ * Copyright 2008-2018 Hunter Perrin
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  *
  * Hunter can be contacted at hperrin@gmail.com
  *
- * @license http://www.gnu.org/licenses/agpl-3.0.html
+ * @license https://www.apache.org/licenses/LICENSE-2.0
  * @author Hunter Perrin <hperrin@gmail.com>
  * @copyright SciActive.com
  * @link http://sciactive.com/
- * @version 1.0
+ * @version 1.1
  */
 
 // Set this to true if you don't trust your users. (And you most likely shouldn't!)
 $secure_mode = true;
 
 if (!empty($_REQUEST['type'])) {
-	try {
-		switch ($_REQUEST['type']) {
-			case 'serialized':
-			default:
-				$value = unserialize($_REQUEST['value']);
-				header("Content-Type: text/plain");
-				switch ($_REQUEST['language']) {
-					case 'yaml':
-					default:
-						$output = Spyc::YAMLDump($value, false, false, true);
-						break;
-					case 'json':
-						$output = json_indent(json_encode($value));
-						break;
-					case 'php':
-						$output = str_replace('stdClass::__set_state(', '(object) (', var_export($value, true));
-						break;
-				}
-				break;
-			case 'exported':
-				switch ($_REQUEST['language']) {
-					case 'yaml':
-					default:
-						$value = Spyc::YAMLLoadString($_REQUEST['value']);
-						break;
-					case 'json':
-						$value = json_decode($_REQUEST['value'], true);
-						break;
-					case 'php':
-						if ($secure_mode)
-							$value = 'I told you, PHP mode is disabled!';
-						else
-							$value = eval('return '.$_REQUEST['value'].';');
-						break;
-				}
-				header("Content-Type: text/plain");
-				$output = serialize($value);
-				break;
-			case 'favicon':
-				header("Content-Type: image/x-icon");
-				$output = get_fav_icon();
-				break;
-			case 'header':
-				header("Content-Type: image/png");
-				$output = get_header();
-				break;
-		}
-	} catch (Exception $e) {
-		$ouput = 'Error: '.$e->getMessage();
-	}
-	echo $output;
-	exit;
+  try {
+    switch ($_REQUEST['type']) {
+      case 'serialized':
+      default:
+        $value = unserialize($_REQUEST['value']);
+        header('Content-Type: text/plain');
+        switch ($_REQUEST['language']) {
+          case 'yaml':
+          default:
+            $output = Spyc::YAMLDump($value, false, false, true);
+            break;
+          case 'json':
+            $output = json_indent(json_encode($value));
+            break;
+          case 'php':
+            $output = str_replace('stdClass::__set_state(', '(object) (', var_export($value, true));
+            break;
+        }
+        break;
+      case 'exported':
+        switch ($_REQUEST['language']) {
+          case 'yaml':
+          default:
+            $value = Spyc::YAMLLoadString($_REQUEST['value']);
+            break;
+          case 'json':
+            $value = json_decode($_REQUEST['value'], true);
+            break;
+          case 'php':
+            if ($secure_mode)
+              $value = 'I told you, PHP mode is disabled!';
+            else
+              $value = eval('return '.$_REQUEST['value'].';');
+            break;
+        }
+        header('Content-Type: text/plain');
+        $output = serialize($value);
+        break;
+      case 'favicon':
+        header('Content-Type: image/x-icon');
+        $output = get_fav_icon();
+        break;
+      case 'header':
+        header('Content-Type: image/png');
+        $output = get_header();
+        break;
+    }
+  } catch (Exception $e) {
+    $ouput = 'Error: '.$e->getMessage();
+  }
+  echo $output;
+  exit;
 }
 
 ?>
 <!DOCTYPE html>
 <html>
-	<head>
-		<title>Serialized PHP Editor</title>
-		<meta charset="UTF-8" />
-		<link href="<?php echo htmlspecialchars($_SERVER['PHP_SELF']); ?>?type=favicon" type="image/vnd.microsoft.icon" rel="icon">
-		<script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
-		<link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css">
-		<script src="//netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js"></script>
-		<?php if ($secure_mode) { ?>
-		<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/pnotify/1.3.1/jquery.pnotify.default.min.css">
-		<script src="//cdnjs.cloudflare.com/ajax/libs/pnotify/1.3.1/jquery.pnotify.min.js"></script>
-		<?php } ?>
-		<style type="text/css">
-			textarea {
-				width: 100%;
-				border: 1px solid #333;
-			}
-			#diff_container {
-				width: 100%;
-				overflow: auto;
-				border: 1px solid #333;
-			}
-			#diff {
-				padding: .5em;
-				white-space: pre;
-				font-size: .8em;
-				font-family: monospace;
-			}
-		</style>
-		<script type="text/javascript">
-			$(function(){
-				var updating = false, original = "";
-				var diff = $("#diff"), output = $("#output");
-				var serialized = $("#serialized").on("change keyup", function(){
-					if (updating)
-						return;
-					original = serialized.val();
-					$.post("", {type: "serialized", "value": original, "language": $("input[name=language]:checked").val()}, function(data){
-						updating = true;
-						editor.val(data);
-						updating = false;
-						editor.change();
-					});
-				});
-				$("input[name=language]").on("change", function(){
-					serialized.trigger("change");
-				})
-				var editor = $("#editor").on("change keyup", function(){
-					if (updating)
-						return;
-					$.post("", {type: "exported", "value": editor.val(), "language": $("input[name=language]:checked").val()}, function(data){
-						updating = true;
-						output.val(data);
-						diff.html(pretty_php_serialized(WDiffString(original, data)));
-						updating = false;
-					});
-				});
-				serialized.trigger("change");
-			});
+  <head>
+    <title>Serialized PHP Editor</title>
+    <meta charset="UTF-8" />
+    <link href="<?php echo htmlspecialchars($_SERVER['PHP_SELF']); ?>?type=favicon" type="image/vnd.microsoft.icon" rel="icon">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css">
+    <script src="https://netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js"></script>
+    <?php if ($secure_mode) { ?>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pnotify/1.3.1/jquery.pnotify.default.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pnotify/1.3.1/jquery.pnotify.min.js"></script>
+    <?php } ?>
+    <style type="text/css">
+      textarea {
+        width: 100%;
+        border: 1px solid #333;
+      }
+      #diff_container {
+        width: 100%;
+        overflow: auto;
+        border: 1px solid #333;
+      }
+      #diff {
+        padding: .5em;
+        white-space: pre;
+        font-size: .8em;
+        font-family: monospace;
+      }
+    </style>
+    <script type="text/javascript">
+      $(function(){
+        var updating = false, original = '';
+        var diff = $('#diff'), output = $('#output');
+        var serialized = $('#serialized').on('change keyup', function(){
+          if (updating)
+            return;
+          original = serialized.val();
+          $.post('', {type: 'serialized', 'value': original, 'language': $('input[name=language]:checked').val()}, function(data){
+            updating = true;
+            editor.val(data);
+            updating = false;
+            editor.change();
+          });
+        });
+        $('input[name=language]').on('change', function(){
+          serialized.trigger('change');
+        })
+        var editor = $('#editor').on('change keyup', function(){
+          if (updating)
+            return;
+          $.post('', {type: 'exported', 'value': editor.val(), 'language': $('input[name=language]:checked').val()}, function(data){
+            updating = true;
+            output.val(data);
+            diff.html(pretty_php_serialized(WDiffString(original, data)));
+            updating = false;
+          });
+        });
+        serialized.trigger('change');
+      });
 
-			function pretty_php_serialized(serialized) {
-				serialized = serialized.replace(/<br\/?>/g, "").replace(/&([a-z0-9#]+);/gi, "**ent($1)ent**");
-				while (serialized.match(/\{[^\n]/)!==null)
-					serialized = serialized.replace(/\{([^\n])/g, "{\n$1");
-				while (serialized.match(/\}[^\n]/)!==null)
-					serialized = serialized.replace(/\}([^\n])/g, "}\n$1");
-				while (serialized.match(/[^\n]\}/)!==null)
-					serialized = serialized.replace(/([^\n])\}/g, "$1\n}");
-				while (serialized.match(/;[^\n]/)!==null)
-					serialized = serialized.replace(/;([^\n])/g, ";\n$1");
-				while (serialized.match(/\{\n\}/)!==null)
-					serialized = serialized.replace(/\{\n\}/g, "{}");
-				var cur_indent = 1;
-				var cur_entry_index = false;
-				var lines = serialized.split("\n");
-				serialized = "";
-				for (var i=0; i<lines.length; i++) {
-					var is_a_closer = lines[i].charAt(0) == "}";
-					if (is_a_closer) {
-						cur_indent--;
-						serialized += Array(cur_indent).join("  ")+lines[i]+"\n";
-					} else {
-						if (cur_entry_index)
-							serialized += Array(cur_indent).join("  ")+lines[i];
-						else
-							serialized += lines[i]+"\n";
-						cur_entry_index = !cur_entry_index;
-					}
-					if (lines[i].charAt(lines[i].length-1) == "{")
-						cur_indent++;
-				}
-				serialized = serialized.replace(/\*\*ent\(([a-z0-9#]+)\)ent\*\*/gi, "&$1;");
-				return serialized;
-			}
+      function pretty_php_serialized(serialized) {
+        serialized = serialized.replace(/<br\/?>/g, '').replace(/&([a-z0-9#]+);/gi, '**ent($1)ent**');
+        while (serialized.match(/\{[^\n]/)!==null)
+          serialized = serialized.replace(/\{([^\n])/g, '{\n$1');
+        while (serialized.match(/\}[^\n]/)!==null)
+          serialized = serialized.replace(/\}([^\n])/g, '}\n$1');
+        while (serialized.match(/[^\n]\}/)!==null)
+          serialized = serialized.replace(/([^\n])\}/g, '$1\n}');
+        while (serialized.match(/;[^\n]/)!==null)
+          serialized = serialized.replace(/;([^\n])/g, ';\n$1');
+        while (serialized.match(/\{\n\}/)!==null)
+          serialized = serialized.replace(/\{\n\}/g, '{}');
+        var cur_indent = 1;
+        var cur_entry_index = false;
+        var lines = serialized.split('\n');
+        serialized = '';
+        for (var i=0; i<lines.length; i++) {
+          var is_a_closer = lines[i].charAt(0) == '}';
+          if (is_a_closer) {
+            cur_indent--;
+            serialized += Array(cur_indent).join('  ')+lines[i]+'\n';
+          } else {
+            if (cur_entry_index)
+              serialized += Array(cur_indent).join('  ')+lines[i];
+            else
+              serialized += lines[i]+'\n';
+            cur_entry_index = !cur_entry_index;
+          }
+          if (lines[i].charAt(lines[i].length-1) == '{')
+            cur_indent++;
+        }
+        serialized = serialized.replace(/\*\*ent\(([a-z0-9#]+)\)ent\*\*/gi, '&$1;');
+        return serialized;
+      }
 
-			function do_example() {
-				var example = 'a:1:{s:13:"533616e6f0a3d";a:4:{s:4:"name";s:4:"Home";s:7:"buttons";a:34:{i:0;a:2:{s:9:"component";s:12:"com_calendar";s:6:"button";s:8:"calendar";}i:1;s:9:"separator";i:2;a:2:{s:9:"component";s:13:"com_configure";s:6:"button";s:6:"config";}i:3;s:9:"separator";i:4;a:2:{s:9:"component";s:11:"com_content";s:6:"button";s:10:"categories";}i:5;a:2:{s:9:"component";s:11:"com_content";s:6:"button";s:5:"pages";}i:6;a:2:{s:9:"component";s:11:"com_content";s:6:"button";s:8:"page_new";}i:7;s:9:"separator";i:8;a:2:{s:9:"component";s:12:"com_customer";s:6:"button";s:9:"customers";}i:9;a:2:{s:9:"component";s:12:"com_customer";s:6:"button";s:12:"customer_new";}i:10;s:9:"separator";i:11;a:2:{s:9:"component";s:12:"com_elfinder";s:6:"button";s:12:"file_manager";}i:12;s:9:"separator";i:13;a:2:{s:9:"component";s:14:"com_menueditor";s:6:"button";s:7:"entries";}i:14;a:2:{s:9:"component";s:14:"com_menueditor";s:6:"button";s:9:"entry_new";}i:15;s:9:"separator";i:16;a:2:{s:9:"component";s:11:"com_modules";s:6:"button";s:7:"modules";}i:17;a:2:{s:9:"component";s:11:"com_modules";s:6:"button";s:10:"module_new";}i:18;s:9:"separator";i:19;a:2:{s:9:"component";s:9:"com_plaza";s:6:"button";s:11:"getsoftware";}i:20;a:2:{s:9:"component";s:9:"com_plaza";s:6:"button";s:9:"installed";}i:21;s:9:"separator";i:22;a:2:{s:9:"component";s:11:"com_reports";s:6:"button";s:8:"rankings";}i:23;s:9:"separator";i:24;a:2:{s:9:"component";s:9:"com_sales";s:6:"button";s:5:"sales";}i:25;a:2:{s:9:"component";s:9:"com_sales";s:6:"button";s:8:"sale_new";}i:26;a:2:{s:9:"component";s:9:"com_sales";s:6:"button";s:11:"countsheets";}i:27;a:2:{s:9:"component";s:9:"com_sales";s:6:"button";s:14:"countsheet_new";}i:28;a:2:{s:9:"component";s:9:"com_sales";s:6:"button";s:7:"receive";}i:29;a:2:{s:9:"component";s:9:"com_sales";s:6:"button";s:7:"pending";}i:30;a:2:{s:9:"component";s:9:"com_sales";s:6:"button";s:9:"shipments";}i:31;s:9:"separator";i:32;a:2:{s:9:"component";s:8:"com_user";s:6:"button";s:10:"my_account";}i:33;a:2:{s:9:"component";s:8:"com_user";s:6:"button";s:6:"logout";}}s:12:"buttons_size";s:5:"large";s:7:"columns";a:3:{s:13:"533616e6f0a46";a:2:{s:4:"size";d:0.25;s:7:"widgets";a:2:{s:13:"533616e6f0975";a:3:{s:9:"component";s:9:"com_about";s:6:"widget";s:8:"newsfeed";s:7:"options";a:0:{}}s:13:"533616e6f0a08";a:3:{s:9:"component";s:11:"com_content";s:6:"widget";s:9:"quickpage";s:7:"options";a:0:{}}}}s:13:"533616e6f0a4e";a:2:{s:4:"size";d:0.333333333333329984160542380777769722044467926025390625;s:7:"widgets";a:2:{s:13:"533616e6f09b6";a:3:{s:9:"component";s:12:"com_calendar";s:6:"widget";s:6:"agenda";s:7:"options";a:0:{}}s:13:"533616e6f0a33";a:3:{s:9:"component";s:7:"com_hrm";s:6:"widget";s:7:"clockin";s:7:"options";a:0:{}}}}s:13:"533616e6f0a53";a:2:{s:4:"size";d:0.416666666666670015839457619222230277955532073974609375;s:7:"widgets";a:1:{s:13:"533616e6f09e0";a:3:{s:9:"component";s:13:"com_configure";s:6:"widget";s:7:"welcome";s:7:"options";a:0:{}}}}}}}';
-				$("#serialized").val(example).trigger("change");
-			}
-			<?php if ($secure_mode) { ?>
-			var stack = {"dir1": "up", "dir2": "left", "firstpos1": 25, "firstpos2": 25};
-			$.pnotify.defaults.stack = stack;
-			$.pnotify.defaults.addclass = 'stack-bottomright';
-			$(function(){
-				var n = $.pnotify({
-					title: "PHP Mode Disabled",
-					text: "PHP language mode has been disabled for security reasons.",
-					type: "info",
-					hide: false,
-					history: false,
-					styling: "bootstrap3",
-					nonblock: true,
-					nonblock_opacity: .2
-				}).click(function(){n.pnotify_remove()});
-			});
-			<?php } ?>
-		</script>
-	</head>
-	<body>
-		<div class="container">
-			<header class="page-header">
-				<div style="float: right; position: relative; top: -20px;">
-					<a href="http://2be.io" target="_blank">
-						<img src="<?php echo htmlspecialchars($_SERVER['PHP_SELF']); ?>?type=header" alt="2be Logo" style="border: none;" />
-					</a>
-				</div>
-				<h1>Serialized PHP Editor</h1>
-			</header>
-			<div class="form-group">
-				<label>Choose a language to use for editing</label>
-				<div>
-					<div class="btn-group" data-toggle="buttons">
-						<label class="btn btn-default active"><input type="radio" name="language" value="yaml" checked="checked" /> YAML</label>
-						<label class="btn btn-default"><input type="radio" name="language" value="json" /> JSON</label>
-						<label class="btn btn-default<?php if ($secure_mode) { ?> disabled<?php } ?>"><input type="radio" name="language" value="php" <?php if ($secure_mode) { ?>disabled="disabled"<?php } ?> /> PHP</label>
-					</div>
-				</div>
-			</div>
-			<div class="row">
-				<div class="col-sm-6">
-					1. Paste in serialized PHP here: <small>(<a href="javascript:void(0);" onclick="do_example();">example</a>)</small><br />
-					<textarea rows="6" cols="30" id="serialized" style="height: 100px;"></textarea>
-				</div>
-				<div class="col-sm-6">
-					3. The new serialized PHP will appear here:<br />
-					<textarea rows="6" cols="30" id="output" style="height: 100px;"></textarea>
-				</div>
-			</div>
-			<div class="row">
-				<div class="col-sm-6">
-					2. Then edit the value here:<br />
-					<textarea rows="20" cols="30" id="editor" style="height: 500px;"></textarea>
-				</div>
-				<div class="col-sm-6">
-					4. A colored diff will show here:<br />
-					<div id="diff_container" style="height: 500px;">
-						<div id="diff"></div>
-					</div>
-				</div>
-			</div>
-			<div>
-				<a href="https://github.com/sciactive/2be-extras/blob/master/phpserialeditor.php">This tool is open source.</a>
-			</div>
-		</div>
-	</body>
+      function do_example() {
+        var example = 'a:1:{s:13:"533616e6f0a3d";a:4:{s:4:"name";s:4:"Home";s:'+
+        '7:"buttons";a:34:{i:0;a:2:{s:9:"component";s:12:"com_calendar";s:6:"b'+
+        'utton";s:8:"calendar";}i:1;s:9:"separator";i:2;a:2:{s:9:"component";s'+
+        ':13:"com_configure";s:6:"button";s:6:"config";}i:3;s:9:"separator";i:'+
+        '4;a:2:{s:9:"component";s:11:"com_content";s:6:"button";s:10:"categori'+
+        'es";}i:5;a:2:{s:9:"component";s:11:"com_content";s:6:"button";s:5:"pa'+
+        'ges";}i:6;a:2:{s:9:"component";s:11:"com_content";s:6:"button";s:8:"p'+
+        'age_new";}i:7;s:9:"separator";i:8;a:2:{s:9:"component";s:12:"com_cust'+
+        'omer";s:6:"button";s:9:"customers";}i:9;a:2:{s:9:"component";s:12:"co'+
+        'm_customer";s:6:"button";s:12:"customer_new";}i:10;s:9:"separator";i:'+
+        '11;a:2:{s:9:"component";s:12:"com_elfinder";s:6:"button";s:12:"file_m'+
+        'anager";}i:12;s:9:"separator";i:13;a:2:{s:9:"component";s:14:"com_men'+
+        'ueditor";s:6:"button";s:7:"entries";}i:14;a:2:{s:9:"component";s:14:"'+
+        'com_menueditor";s:6:"button";s:9:"entry_new";}i:15;s:9:"separator";i:'+
+        '16;a:2:{s:9:"component";s:11:"com_modules";s:6:"button";s:7:"modules"'+
+        ';}i:17;a:2:{s:9:"component";s:11:"com_modules";s:6:"button";s:10:"mod'+
+        'ule_new";}i:18;s:9:"separator";i:19;a:2:{s:9:"component";s:9:"com_pla'+
+        'za";s:6:"button";s:11:"getsoftware";}i:20;a:2:{s:9:"component";s:9:"c'+
+        'om_plaza";s:6:"button";s:9:"installed";}i:21;s:9:"separator";i:22;a:2'+
+        ':{s:9:"component";s:11:"com_reports";s:6:"button";s:8:"rankings";}i:2'+
+        '3;s:9:"separator";i:24;a:2:{s:9:"component";s:9:"com_sales";s:6:"butt'+
+        'on";s:5:"sales";}i:25;a:2:{s:9:"component";s:9:"com_sales";s:6:"butto'+
+        'n";s:8:"sale_new";}i:26;a:2:{s:9:"component";s:9:"com_sales";s:6:"but'+
+        'ton";s:11:"countsheets";}i:27;a:2:{s:9:"component";s:9:"com_sales";s:'+
+        '6:"button";s:14:"countsheet_new";}i:28;a:2:{s:9:"component";s:9:"com_'+
+        'sales";s:6:"button";s:7:"receive";}i:29;a:2:{s:9:"component";s:9:"com'+
+        '_sales";s:6:"button";s:7:"pending";}i:30;a:2:{s:9:"component";s:9:"co'+
+        'm_sales";s:6:"button";s:9:"shipments";}i:31;s:9:"separator";i:32;a:2:'+
+        '{s:9:"component";s:8:"com_user";s:6:"button";s:10:"my_account";}i:33;'+
+        'a:2:{s:9:"component";s:8:"com_user";s:6:"button";s:6:"logout";}}s:12:'+
+        '"buttons_size";s:5:"large";s:7:"columns";a:3:{s:13:"533616e6f0a46";a:'+
+        '2:{s:4:"size";d:0.25;s:7:"widgets";a:2:{s:13:"533616e6f0975";a:3:{s:9'+
+        ':"component";s:9:"com_about";s:6:"widget";s:8:"newsfeed";s:7:"options'+
+        '";a:0:{}}s:13:"533616e6f0a08";a:3:{s:9:"component";s:11:"com_content"'+
+        ';s:6:"widget";s:9:"quickpage";s:7:"options";a:0:{}}}}s:13:"533616e6f0'+
+        'a4e";a:2:{s:4:"size";d:0.33333333333333;s:7:"widgets";a:2:{s:13:"5336'+
+        '16e6f09b6";a:3:{s:9:"component";s:12:"com_calendar";s:6:"widget";s:6:'+
+        '"agenda";s:7:"options";a:0:{}}s:13:"533616e6f0a33";a:3:{s:9:"componen'+
+        't";s:7:"com_hrm";s:6:"widget";s:7:"clockin";s:7:"options";a:0:{}}}}s:'+
+        '13:"533616e6f0a53";a:2:{s:4:"size";d:0.41666666666667;s:7:"widgets";a'+
+        ':1:{s:13:"533616e6f09e0";a:3:{s:9:"component";s:13:"com_configure";s:'+
+        '6:"widget";s:7:"welcome";s:7:"options";a:0:{}}}}}}}';
+        $('#serialized').val(example).trigger('change');
+      }
+      <?php if ($secure_mode) { ?>
+      var stack = {'dir1': 'up', 'dir2': 'left', 'firstpos1': 25, 'firstpos2': 25};
+      $.pnotify.defaults.stack = stack;
+      $.pnotify.defaults.addclass = 'stack-bottomright';
+      $(function(){
+        var n = $.pnotify({
+          title: 'PHP Mode Disabled',
+          text: 'PHP language mode has been disabled for security reasons.',
+          type: 'info',
+          history: false,
+          styling: 'bootstrap3',
+          nonblock: true,
+          nonblock_opacity: .2
+        }).click(function(){n.pnotify_remove()});
+      });
+      <?php } ?>
+    </script>
+  </head>
+  <body>
+    <div class="container">
+      <header class="page-header clearfix">
+        <div style="float: right; position: relative;">
+          <a href="http://nymph.io" target="_blank">
+            <img style="height: 65px;" src="<?php echo htmlspecialchars($_SERVER['PHP_SELF']); ?>?type=header" alt="Nymph Logo" style="border: none;" />
+          </a>
+        </div>
+        <h1>Serialized PHP Editor</h1>
+      </header>
+      <div class="form-group">
+        <label>Choose a language to use for editing</label>
+        <div>
+          <div class="btn-group" data-toggle="buttons">
+            <label class="btn btn-default active"><input type="radio" name="language" value="yaml" checked="checked" /> YAML</label>
+            <label class="btn btn-default"><input type="radio" name="language" value="json" /> JSON</label>
+            <label class="btn btn-default<?php if ($secure_mode) { ?> disabled<?php } ?>"><input type="radio" name="language" value="php" <?php if ($secure_mode) { ?>disabled="disabled"<?php } ?> /> PHP</label>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-sm-6">
+          1. Paste in serialized PHP here: <small>(<a href="javascript:void(0);" onclick="do_example();">example</a>)</small><br />
+          <textarea rows="6" cols="30" id="serialized" style="height: 100px;"></textarea>
+        </div>
+        <div class="col-sm-6">
+          3. The new serialized PHP will appear here:<br />
+          <textarea rows="6" cols="30" id="output" style="height: 100px;"></textarea>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-sm-6">
+          2. Then edit the value here:<br />
+          <textarea rows="20" cols="30" id="editor" style="height: 500px;"></textarea>
+        </div>
+        <div class="col-sm-6">
+          4. A colored diff will show here:<br />
+          <div id="diff_container" style="height: 500px;">
+            <div id="diff"></div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <a href="https://github.com/sciactive/phpserialeditor.php">This tool is open source.</a>
+      </div>
+    </div>
+  </body>
 <script type="text/javascript">
 /*
 
@@ -267,7 +305,7 @@ Code:    http://en.wikipedia.org/wiki/User:Cacycle/diff.js
 JavaScript diff algorithm by [[en:User:Cacycle]] (http://en.wikipedia.org/wiki/User_talk:Cacycle).
 Outputs html/css-formatted new text with highlighted deletions, inserts, and block moves.
 For newline highlighting the following style rules have to be added to the document:
-	.wDiffParagraph:before { content: "¶"; };
+  .wDiffParagraph:before { content: "¶"; };
 
 The program uses cross-browser code and should work with all modern browsers. It has been tested with:
 * Mozilla Firefox 1.5.0.1
@@ -286,7 +324,7 @@ With the following additional feature:
 
 * Word types have been optimized for MediaWiki source texts
 * Additional post-pass 5 code for resolving islands caused by adding
-	two common words at the end of sequences of common words
+  two common words at the end of sequences of common words
 * Additional detection of block borders and color coding of moved blocks and their original position
 * Optional "intelligent" omission of unchanged parts from the output
 
@@ -300,36 +338,36 @@ This code has been released into the public domain.
 Datastructures (abbreviations from publication):
 
 text: an object that holds all text related datastructures
-	.newWords: consecutive words of the new text (N)
-	.oldWords: consecutive words of the old text (O)
-	.newToOld: array pointing to corresponding word number in old text (NA)
-	.oldToNew: array pointing to corresponding word number in new text (OA)
-	.message:  output message for testing purposes
+  .newWords: consecutive words of the new text (N)
+  .oldWords: consecutive words of the old text (O)
+  .newToOld: array pointing to corresponding word number in old text (NA)
+  .oldToNew: array pointing to corresponding word number in new text (OA)
+  .message:  output message for testing purposes
 
 symbol table:
-	symbols[word]: associative array (object) of detected words for passes 1 - 3, points to symbol[i]
-	symbol[i]: array of objects that hold word counters and pointers:
-		.newCtr:  new word occurences counter (NC)
-		.oldCtr:  old word occurences counter (OC)
-		.toNew:   first word occurrence in new text, points to text.newWords[i]
-		.toOld:   last word occurrence in old text, points to text.oldWords[i]
+  symbols[word]: associative array (object) of detected words for passes 1 - 3, points to symbol[i]
+  symbol[i]: array of objects that hold word counters and pointers:
+    .newCtr:  new word occurences counter (NC)
+    .oldCtr:  old word occurences counter (OC)
+    .toNew:   first word occurrence in new text, points to text.newWords[i]
+    .toOld:   last word occurrence in old text, points to text.oldWords[i]
 
 block: an object that holds block move information
-	blocks indexed after new text:
-	.newStart:  new text word number of start of this block
-	.newLength: element number of this block including non-words
-	.newWords:  true word number of this block
-	.newNumber: corresponding block index in old text
-	.newBlock:  moved-block-number of a block that has been moved here
-	.newLeft:   moved-block-number of a block that has been moved from this border leftwards
-	.newRight:  moved-block-number of a block that has been moved from this border rightwards
-	.newLeftIndex:  index number of a block that has been moved from this border leftwards
-	.newRightIndex: index number of a block that has been moved from this border rightwards
-	blocks indexed after old text:
-	.oldStart:  word number of start of this block
-	.oldToNew:  corresponding new text word number of start
-	.oldLength: element number of this block including non-words
-	.oldWords:  true word number of this block
+  blocks indexed after new text:
+  .newStart:  new text word number of start of this block
+  .newLength: element number of this block including non-words
+  .newWords:  true word number of this block
+  .newNumber: corresponding block index in old text
+  .newBlock:  moved-block-number of a block that has been moved here
+  .newLeft:   moved-block-number of a block that has been moved from this border leftwards
+  .newRight:  moved-block-number of a block that has been moved from this border rightwards
+  .newLeftIndex:  index number of a block that has been moved from this border leftwards
+  .newRightIndex: index number of a block that has been moved from this border rightwards
+  blocks indexed after old text:
+  .oldStart:  word number of start of this block
+  .oldToNew:  corresponding new text word number of start
+  .oldLength: element number of this block including non-words
+  .oldWords:  true word number of this block
 
 */
 
@@ -339,15 +377,15 @@ if (typeof(wDiffStyleDelete) == 'undefined') { window.wDiffStyleDelete = 'font-w
 if (typeof(wDiffStyleInsert) == 'undefined') { window.wDiffStyleInsert = 'font-weight: normal; text-decoration: none; color: #fff; background-color: #009933;'; }
 if (typeof(wDiffStyleMoved)  == 'undefined') { window.wDiffStyleMoved  = 'font-weight: bold;  color: #000; vertical-align: text-bottom; font-size: xx-small; padding: 0; border: solid 1px;'; }
 if (typeof(wDiffStyleBlock)  == 'undefined') { window.wDiffStyleBlock  = [
-	'color: #000; background-color: #ffff80;',
-	'color: #000; background-color: #c0ffff;',
-	'color: #000; background-color: #ffd0f0;',
-	'color: #000; background-color: #ffe080;',
-	'color: #000; background-color: #aaddff;',
-	'color: #000; background-color: #ddaaff;',
-	'color: #000; background-color: #ffbbbb;',
-	'color: #000; background-color: #d8ffa0;',
-	'color: #000; background-color: #d0d0d0;'
+  'color: #000; background-color: #ffff80;',
+  'color: #000; background-color: #c0ffff;',
+  'color: #000; background-color: #ffd0f0;',
+  'color: #000; background-color: #ffe080;',
+  'color: #000; background-color: #aaddff;',
+  'color: #000; background-color: #ddaaff;',
+  'color: #000; background-color: #ffbbbb;',
+  'color: #000; background-color: #d8ffa0;',
+  'color: #000; background-color: #d0d0d0;'
 ]; }
 
 // html for change indicators, {number} is replaced by the block number
@@ -413,60 +451,60 @@ window.StringDiff = window.WDiffString;
 window.WDiffString = function(oldText, newText) {
 
 // IE / Mac fix
-	oldText = oldText.replace(/\r\n?/g, '\n');
-	newText = newText.replace(/\r\n?/g, '\n');
+  oldText = oldText.replace(/\r\n?/g, '\n');
+  newText = newText.replace(/\r\n?/g, '\n');
 
-	var text = {};
-	text.newWords = [];
-	text.oldWords = [];
-	text.newToOld = [];
-	text.oldToNew = [];
-	text.message = '';
-	var block = {};
-	var outText = '';
+  var text = {};
+  text.newWords = [];
+  text.oldWords = [];
+  text.newToOld = [];
+  text.oldToNew = [];
+  text.message = '';
+  var block = {};
+  var outText = '';
 
 // trap trivial changes: no change
-	if (oldText == newText) {
-		outText = newText;
-		outText = WDiffEscape(outText);
-		outText = WDiffHtmlFormat(outText);
-		return(outText);
-	}
+  if (oldText == newText) {
+    outText = newText;
+    outText = WDiffEscape(outText);
+    outText = WDiffHtmlFormat(outText);
+    return(outText);
+  }
 
 // trap trivial changes: old text deleted
-	if ( (oldText == null) || (oldText.length == 0) ) {
-		outText = newText;
-		outText = WDiffEscape(outText);
-		outText = WDiffHtmlFormat(outText);
-		outText = wDiffHtmlInsertStart + outText + wDiffHtmlInsertEnd;
-		return(outText);
-	}
+  if ( (oldText == null) || (oldText.length == 0) ) {
+    outText = newText;
+    outText = WDiffEscape(outText);
+    outText = WDiffHtmlFormat(outText);
+    outText = wDiffHtmlInsertStart + outText + wDiffHtmlInsertEnd;
+    return(outText);
+  }
 
 // trap trivial changes: new text deleted
-	if ( (newText == null) || (newText.length == 0) ) {
-		outText = oldText;
-		outText = WDiffEscape(outText);
-		outText = WDiffHtmlFormat(outText);
-		outText = wDiffHtmlDeleteStart + outText + wDiffHtmlDeleteEnd;
-		return(outText);
-	}
+  if ( (newText == null) || (newText.length == 0) ) {
+    outText = oldText;
+    outText = WDiffEscape(outText);
+    outText = WDiffHtmlFormat(outText);
+    outText = wDiffHtmlDeleteStart + outText + wDiffHtmlDeleteEnd;
+    return(outText);
+  }
 
 // split new and old text into words
-	WDiffSplitText(oldText, newText, text);
+  WDiffSplitText(oldText, newText, text);
 
 // calculate diff information
-	WDiffText(text);
+  WDiffText(text);
 
 //detect block borders and moved blocks
-	WDiffDetectBlocks(text, block);
+  WDiffDetectBlocks(text, block);
 
 // process diff data into formatted html text
-	outText = WDiffToHtml(text, block);
+  outText = WDiffToHtml(text, block);
 
 // IE fix
-	outText = outText.replace(/> ( *)</g, '>&nbsp;$1<');
+  outText = outText.replace(/> ( *)</g, '>&nbsp;$1<');
 
-	return(outText);
+  return(outText);
 };
 
 
@@ -477,30 +515,30 @@ window.WDiffString = function(oldText, newText) {
 window.WDiffSplitText = function(oldText, newText, text) {
 
 // convert strange spaces
-	oldText = oldText.replace(/[\t\u000b\u00a0\u2028\u2029]+/g, ' ');
-	newText = newText.replace(/[\t\u000b\u00a0\u2028\u2029]+/g, ' ');
+  oldText = oldText.replace(/[\t\u000b\u00a0\u2028\u2029]+/g, ' ');
+  newText = newText.replace(/[\t\u000b\u00a0\u2028\u2029]+/g, ' ');
 
 // split old text into words
 
 //              /     |    |    |    |    |   |  |     |   |  |  |    |    |    | /
-	var pattern = /[\w]+|\[\[|\]\]|\{\{|\}\}|\n+| +|&\w+;|'''|''|=+|\{\||\|\}|\|\-|./g;
-	var result;
-	do {
-		result = pattern.exec(oldText);
-		if (result != null) {
-			text.oldWords.push(result[0]);
-		}
-	} while (result != null);
+  var pattern = /[\w]+|\[\[|\]\]|\{\{|\}\}|\n+| +|&\w+;|'''|''|=+|\{\||\|\}|\|\-|./g;
+  var result;
+  do {
+    result = pattern.exec(oldText);
+    if (result != null) {
+      text.oldWords.push(result[0]);
+    }
+  } while (result != null);
 
 // split new text into words
-	do {
-		result = pattern.exec(newText);
-		if (result != null) {
-			text.newWords.push(result[0]);
-		}
-	} while (result != null);
+  do {
+    result = pattern.exec(newText);
+    if (result != null) {
+      text.newWords.push(result[0]);
+    }
+  } while (result != null);
 
-	return;
+  return;
 };
 
 
@@ -511,236 +549,236 @@ window.WDiffSplitText = function(oldText, newText, text) {
 
 window.WDiffText = function(text, newStart, newEnd, oldStart, oldEnd, recursionLevel) {
 
-	var symbol = [];
-	var symbols = {};
+  var symbol = [];
+  var symbols = {};
 
 // set defaults
-	if (typeof(newStart) == 'undefined') { newStart = 0; }
-	if (typeof(newEnd) == 'undefined') { newEnd = text.newWords.length; }
-	if (typeof(oldStart) == 'undefined') { oldStart = 0; }
-	if (typeof(oldEnd) == 'undefined') { oldEnd = text.oldWords.length; }
-	if (typeof(recursionLevel) == 'undefined') { recursionLevel = 0; }
+  if (typeof(newStart) == 'undefined') { newStart = 0; }
+  if (typeof(newEnd) == 'undefined') { newEnd = text.newWords.length; }
+  if (typeof(oldStart) == 'undefined') { oldStart = 0; }
+  if (typeof(oldEnd) == 'undefined') { oldEnd = text.oldWords.length; }
+  if (typeof(recursionLevel) == 'undefined') { recursionLevel = 0; }
 
 // limit recursion depth
-	if (recursionLevel > 10) {
-		return;
-	}
+  if (recursionLevel > 10) {
+    return;
+  }
 
 //
 // pass 1: Parse new text into symbol table
 //
-	for (var i = newStart; i < newEnd; i ++) {
-		var word = text.newWords[i];
+  for (var i = newStart; i < newEnd; i ++) {
+    var word = text.newWords[i];
 
 // preserve the native method
-		if (word.indexOf('hasOwnProperty') == 0) {
-			word = word.replace(/^(hasOwnProperty_*)$/, '$1_');
-		}
+    if (word.indexOf('hasOwnProperty') == 0) {
+      word = word.replace(/^(hasOwnProperty_*)$/, '$1_');
+    }
 
 // add new entry to symbol table
-		if (symbols.hasOwnProperty(word) == false) {
-			var last = symbol.length;
-			symbols[word] = last;
-			symbol[last] = { newCtr: 1, oldCtr: 0, toNew: i, toOld: null };
-		}
+    if (symbols.hasOwnProperty(word) == false) {
+      var last = symbol.length;
+      symbols[word] = last;
+      symbol[last] = { newCtr: 1, oldCtr: 0, toNew: i, toOld: null };
+    }
 
 // or update existing entry
-		else {
+    else {
 
 // increment word counter for new text
-			var hashToArray = symbols[word];
-			symbol[hashToArray].newCtr ++;
-		}
-	}
+      var hashToArray = symbols[word];
+      symbol[hashToArray].newCtr ++;
+    }
+  }
 
 //
 // pass 2: parse old text into symbol table
 //
-	for (var i = oldStart; i < oldEnd; i ++) {
-		var word = text.oldWords[i];
+  for (var i = oldStart; i < oldEnd; i ++) {
+    var word = text.oldWords[i];
 
 // preserve the native method
-		if (word.indexOf('hasOwnProperty') == 0) {
-			word = word.replace(/^(hasOwnProperty_*)$/, '$1_');
-		}
+    if (word.indexOf('hasOwnProperty') == 0) {
+      word = word.replace(/^(hasOwnProperty_*)$/, '$1_');
+    }
 
 // add new entry to symbol table
-		if (symbols.hasOwnProperty(word) == false) {
-			var last = symbol.length;
-			symbols[word] = last;
-			symbol[last] = { newCtr: 0, oldCtr: 1, toNew: null, toOld: i };
-		}
+    if (symbols.hasOwnProperty(word) == false) {
+      var last = symbol.length;
+      symbols[word] = last;
+      symbol[last] = { newCtr: 0, oldCtr: 1, toNew: null, toOld: i };
+    }
 
 // or update existing entry
-		else {
+    else {
 
 // increment word counter for old text
-			var hashToArray = symbols[word];
-			symbol[hashToArray].oldCtr ++;
+      var hashToArray = symbols[word];
+      symbol[hashToArray].oldCtr ++;
 
 // add word number for old text
-			symbol[hashToArray].toOld = i;
-		}
-	}
+      symbol[hashToArray].toOld = i;
+    }
+  }
 
 //
 // pass 3: connect unique words
 //
-	for (var i = 0; i < symbol.length; i ++) {
+  for (var i = 0; i < symbol.length; i ++) {
 
 // find words in the symbol table that occur only once in both versions
-		if ( (symbol[i].newCtr == 1) && (symbol[i].oldCtr == 1) ) {
-			var toNew = symbol[i].toNew;
-			var toOld = symbol[i].toOld;
+    if ( (symbol[i].newCtr == 1) && (symbol[i].oldCtr == 1) ) {
+      var toNew = symbol[i].toNew;
+      var toOld = symbol[i].toOld;
 
 // do not use spaces as unique markers
-			if (/^\s+$/.test(text.newWords[toNew]) == false) {
+      if (/^\s+$/.test(text.newWords[toNew]) == false) {
 
 // connect from new to old and from old to new
-				text.newToOld[toNew] = toOld;
-				text.oldToNew[toOld] = toNew;
-			}
-		}
-	}
+        text.newToOld[toNew] = toOld;
+        text.oldToNew[toOld] = toNew;
+      }
+    }
+  }
 
 //
 // pass 4: connect adjacent identical words downwards
 //
-	for (var i = newStart; i < newEnd - 1; i ++) {
+  for (var i = newStart; i < newEnd - 1; i ++) {
 
 // find already connected pairs
-		if (text.newToOld[i] != null) {
-			var j = text.newToOld[i];
+    if (text.newToOld[i] != null) {
+      var j = text.newToOld[i];
 
 // check if the following words are not yet connected
-			if ( (text.newToOld[i + 1] == null) && (text.oldToNew[j + 1] == null) ) {
+      if ( (text.newToOld[i + 1] == null) && (text.oldToNew[j + 1] == null) ) {
 
 // connect if the following words are the same
-				if (text.newWords[i + 1] == text.oldWords[j + 1]) {
-					text.newToOld[i + 1] = j + 1;
-					text.oldToNew[j + 1] = i + 1;
-				}
-			}
-		}
-	}
+        if (text.newWords[i + 1] == text.oldWords[j + 1]) {
+          text.newToOld[i + 1] = j + 1;
+          text.oldToNew[j + 1] = i + 1;
+        }
+      }
+    }
+  }
 
 //
 // pass 5: connect adjacent identical words upwards
 //
-	for (var i = newEnd - 1; i > newStart; i --) {
+  for (var i = newEnd - 1; i > newStart; i --) {
 
 // find already connected pairs
-		if (text.newToOld[i] != null) {
-			var j = text.newToOld[i];
+    if (text.newToOld[i] != null) {
+      var j = text.newToOld[i];
 
 // check if the preceeding words are not yet connected
-			if ( (text.newToOld[i - 1] == null) && (text.oldToNew[j - 1] == null) ) {
+      if ( (text.newToOld[i - 1] == null) && (text.oldToNew[j - 1] == null) ) {
 
 // connect if the preceeding words are the same
-				if ( text.newWords[i - 1] == text.oldWords[j - 1] ) {
-					text.newToOld[i - 1] = j - 1;
-					text.oldToNew[j - 1] = i - 1;
-				}
-			}
-		}
-	}
+        if ( text.newWords[i - 1] == text.oldWords[j - 1] ) {
+          text.newToOld[i - 1] = j - 1;
+          text.oldToNew[j - 1] = i - 1;
+        }
+      }
+    }
+  }
 
 //
 // "pass" 6: recursively diff still unresolved regions downwards
 //
-	if (wDiffRecursiveDiff == true) {
-		var i = newStart;
-		var j = oldStart;
-		while (i < newEnd) {
-			if (text.newToOld[i - 1] != null) {
-				j = text.newToOld[i - 1] + 1;
-			}
+  if (wDiffRecursiveDiff == true) {
+    var i = newStart;
+    var j = oldStart;
+    while (i < newEnd) {
+      if (text.newToOld[i - 1] != null) {
+        j = text.newToOld[i - 1] + 1;
+      }
 
 // check for the start of an unresolved sequence
-			if ( (text.newToOld[i] == null) && (text.oldToNew[j] == null) ) {
+      if ( (text.newToOld[i] == null) && (text.oldToNew[j] == null) ) {
 
 // determine the ends of the sequences
-				var iStart = i;
-				var iEnd = i;
-				while ( (text.newToOld[iEnd] == null) && (iEnd < newEnd) ) {
-					iEnd ++;
-				}
-				var iLength = iEnd - iStart;
+        var iStart = i;
+        var iEnd = i;
+        while ( (text.newToOld[iEnd] == null) && (iEnd < newEnd) ) {
+          iEnd ++;
+        }
+        var iLength = iEnd - iStart;
 
-				var jStart = j;
-				var jEnd = j;
-				while ( (text.oldToNew[jEnd] == null) && (jEnd < oldEnd) ) {
-					jEnd ++;
-				}
-				var jLength = jEnd - jStart;
+        var jStart = j;
+        var jEnd = j;
+        while ( (text.oldToNew[jEnd] == null) && (jEnd < oldEnd) ) {
+          jEnd ++;
+        }
+        var jLength = jEnd - jStart;
 
 // recursively diff the unresolved sequence
-				if ( (iLength > 0) && (jLength > 0) ) {
-					if ( (iLength > 1) || (jLength > 1) ) {
-						if ( (iStart != newStart) || (iEnd != newEnd) || (jStart != oldStart) || (jEnd != oldEnd) ) {
-							WDiffText(text, iStart, iEnd, jStart, jEnd, recursionLevel + 1);
-						}
-					}
-				}
-				i = iEnd;
-			}
-			else {
-				i ++;
-			}
-		}
-	}
+        if ( (iLength > 0) && (jLength > 0) ) {
+          if ( (iLength > 1) || (jLength > 1) ) {
+            if ( (iStart != newStart) || (iEnd != newEnd) || (jStart != oldStart) || (jEnd != oldEnd) ) {
+              WDiffText(text, iStart, iEnd, jStart, jEnd, recursionLevel + 1);
+            }
+          }
+        }
+        i = iEnd;
+      }
+      else {
+        i ++;
+      }
+    }
+  }
 
 //
 // "pass" 7: recursively diff still unresolved regions upwards
 //
-	if (wDiffRecursiveDiff == true) {
-		var i = newEnd - 1;
-		var j = oldEnd - 1;
-		while (i >= newStart) {
-			if (text.newToOld[i + 1] != null) {
-				j = text.newToOld[i + 1] - 1;
-			}
+  if (wDiffRecursiveDiff == true) {
+    var i = newEnd - 1;
+    var j = oldEnd - 1;
+    while (i >= newStart) {
+      if (text.newToOld[i + 1] != null) {
+        j = text.newToOld[i + 1] - 1;
+      }
 
 // check for the start of an unresolved sequence
-			if ( (text.newToOld[i] == null) && (text.oldToNew[j] == null) ) {
+      if ( (text.newToOld[i] == null) && (text.oldToNew[j] == null) ) {
 
 // determine the ends of the sequences
-				var iStart = i;
-				var iEnd = i + 1;
-				while ( (text.newToOld[iStart - 1] == null) && (iStart >= newStart) ) {
-					iStart --;
-				}
-				if (iStart < 0) {
-					iStart = 0;
-				}
-				var iLength = iEnd - iStart;
+        var iStart = i;
+        var iEnd = i + 1;
+        while ( (text.newToOld[iStart - 1] == null) && (iStart >= newStart) ) {
+          iStart --;
+        }
+        if (iStart < 0) {
+          iStart = 0;
+        }
+        var iLength = iEnd - iStart;
 
-				var jStart = j;
-				var jEnd = j + 1;
-				while ( (text.oldToNew[jStart - 1] == null) && (jStart >= oldStart) ) {
-					jStart --;
-				}
-				if (jStart < 0) {
-					jStart = 0;
-				}
-				var jLength = jEnd - jStart;
+        var jStart = j;
+        var jEnd = j + 1;
+        while ( (text.oldToNew[jStart - 1] == null) && (jStart >= oldStart) ) {
+          jStart --;
+        }
+        if (jStart < 0) {
+          jStart = 0;
+        }
+        var jLength = jEnd - jStart;
 
 // recursively diff the unresolved sequence
-				if ( (iLength > 0) && (jLength > 0) ) {
-					if ( (iLength > 1) || (jLength > 1) ) {
-						if ( (iStart != newStart) || (iEnd != newEnd) || (jStart != oldStart) || (jEnd != oldEnd) ) {
-							WDiffText(text, iStart, iEnd, jStart, jEnd, recursionLevel + 1);
-						}
-					}
-				}
-				i = iStart - 1;
-			}
-			else {
-				i --;
-			}
-		}
-	}
-	return;
+        if ( (iLength > 0) && (jLength > 0) ) {
+          if ( (iLength > 1) || (jLength > 1) ) {
+            if ( (iStart != newStart) || (iEnd != newEnd) || (jStart != oldStart) || (jEnd != oldEnd) ) {
+              WDiffText(text, iStart, iEnd, jStart, jEnd, recursionLevel + 1);
+            }
+          }
+        }
+        i = iStart - 1;
+      }
+      else {
+        i --;
+      }
+    }
+  }
+  return;
 };
 
 
@@ -752,206 +790,206 @@ window.WDiffText = function(text, newStart, newEnd, oldStart, oldEnd, recursionL
 
 window.WDiffToHtml = function(text, block) {
 
-	var outText = text.message;
+  var outText = text.message;
 
-	var blockNumber = 0;
-	var i = 0;
-	var j = 0;
-	var movedAsInsertion;
+  var blockNumber = 0;
+  var i = 0;
+  var j = 0;
+  var movedAsInsertion;
 
 // cycle through the new text
-	do {
-		var movedIndex = [];
-		var movedBlock = [];
-		var movedLeft = [];
-		var blockText = '';
-		var identText = '';
-		var delText = '';
-		var insText = '';
-		var identStart = '';
+  do {
+    var movedIndex = [];
+    var movedBlock = [];
+    var movedLeft = [];
+    var blockText = '';
+    var identText = '';
+    var delText = '';
+    var insText = '';
+    var identStart = '';
 
 // check if a block ends here and finish previous block
-		if (movedAsInsertion != null) {
-			if (movedAsInsertion == false) {
-				identStart += wDiffHtmlBlockEnd;
-			}
-			else {
-				identStart += wDiffHtmlInsertEnd;
-			}
-			movedAsInsertion = null;
-		}
+    if (movedAsInsertion != null) {
+      if (movedAsInsertion == false) {
+        identStart += wDiffHtmlBlockEnd;
+      }
+      else {
+        identStart += wDiffHtmlInsertEnd;
+      }
+      movedAsInsertion = null;
+    }
 
 // detect block boundary
-		if ( (text.newToOld[i] != j) || (blockNumber == 0 ) ) {
-			if ( ( (text.newToOld[i] != null) || (i >= text.newWords.length) ) && ( (text.oldToNew[j] != null) || (j >= text.oldWords.length) ) ) {
+    if ( (text.newToOld[i] != j) || (blockNumber == 0 ) ) {
+      if ( ( (text.newToOld[i] != null) || (i >= text.newWords.length) ) && ( (text.oldToNew[j] != null) || (j >= text.oldWords.length) ) ) {
 
 // block moved right
-				var moved = block.newRight[blockNumber];
-				if (moved > 0) {
-					var index = block.newRightIndex[blockNumber];
-					movedIndex.push(index);
-					movedBlock.push(moved);
-					movedLeft.push(false);
-				}
+        var moved = block.newRight[blockNumber];
+        if (moved > 0) {
+          var index = block.newRightIndex[blockNumber];
+          movedIndex.push(index);
+          movedBlock.push(moved);
+          movedLeft.push(false);
+        }
 
 // block moved left
-				moved = block.newLeft[blockNumber];
-				if (moved > 0) {
-					var index = block.newLeftIndex[blockNumber];
-					movedIndex.push(index);
-					movedBlock.push(moved);
-					movedLeft.push(true);
-				}
+        moved = block.newLeft[blockNumber];
+        if (moved > 0) {
+          var index = block.newLeftIndex[blockNumber];
+          movedIndex.push(index);
+          movedBlock.push(moved);
+          movedLeft.push(true);
+        }
 
 // check if a block starts here
-				moved = block.newBlock[blockNumber];
-				if (moved > 0) {
+        moved = block.newBlock[blockNumber];
+        if (moved > 0) {
 
 // mark block as inserted text
-					if (block.newWords[blockNumber] < wDiffBlockMinLength) {
-						identStart += wDiffHtmlInsertStart;
-						movedAsInsertion = true;
-					}
+          if (block.newWords[blockNumber] < wDiffBlockMinLength) {
+            identStart += wDiffHtmlInsertStart;
+            movedAsInsertion = true;
+          }
 
 // mark block by color
-					else {
-						if (moved > wDiffStyleBlock.length) {
-							moved = wDiffStyleBlock.length;
-						}
-						identStart += WDiffHtmlCustomize(wDiffHtmlBlockStart, moved - 1);
-						movedAsInsertion = false;
-					}
-				}
+          else {
+            if (moved > wDiffStyleBlock.length) {
+              moved = wDiffStyleBlock.length;
+            }
+            identStart += WDiffHtmlCustomize(wDiffHtmlBlockStart, moved - 1);
+            movedAsInsertion = false;
+          }
+        }
 
-				if (i >= text.newWords.length) {
-					i ++;
-				}
-				else {
-					j = text.newToOld[i];
-					blockNumber ++;
-				}
-			}
-		}
+        if (i >= text.newWords.length) {
+          i ++;
+        }
+        else {
+          j = text.newToOld[i];
+          blockNumber ++;
+        }
+      }
+    }
 
 // get the correct order if moved to the left as well as to the right from here
-		if (movedIndex.length == 2) {
-			if (movedIndex[0] > movedIndex[1]) {
-				movedIndex.reverse();
-				movedBlock.reverse();
-				movedLeft.reverse();
-			}
-		}
+    if (movedIndex.length == 2) {
+      if (movedIndex[0] > movedIndex[1]) {
+        movedIndex.reverse();
+        movedBlock.reverse();
+        movedLeft.reverse();
+      }
+    }
 
 // handle left and right block moves from this position
-		for (var m = 0; m < movedIndex.length; m ++) {
+    for (var m = 0; m < movedIndex.length; m ++) {
 
 // insert the block as deleted text
-			if (block.newWords[ movedIndex[m] ] < wDiffBlockMinLength) {
-				var movedStart = block.newStart[ movedIndex[m] ];
-				var movedLength = block.newLength[ movedIndex[m] ];
-				var str = '';
-				for (var n = movedStart; n < movedStart + movedLength; n ++) {
-					str += text.newWords[n];
-				}
-				str = WDiffEscape(str);
-				str = str.replace(/\n/g, '<span class="wDiffParagraph"></span><br>');
-				blockText += wDiffHtmlDeleteStart + str + wDiffHtmlDeleteEnd;
-			}
+      if (block.newWords[ movedIndex[m] ] < wDiffBlockMinLength) {
+        var movedStart = block.newStart[ movedIndex[m] ];
+        var movedLength = block.newLength[ movedIndex[m] ];
+        var str = '';
+        for (var n = movedStart; n < movedStart + movedLength; n ++) {
+          str += text.newWords[n];
+        }
+        str = WDiffEscape(str);
+        str = str.replace(/\n/g, '<span class="wDiffParagraph"></span><br>');
+        blockText += wDiffHtmlDeleteStart + str + wDiffHtmlDeleteEnd;
+      }
 
 // add a placeholder / move direction indicator
-			else {
-				if (movedBlock[m] > wDiffStyleBlock.length) {
-					movedBlock[m] = wDiffStyleBlock.length;
-				}
-				if (movedLeft[m]) {
-					blockText += WDiffHtmlCustomize(wDiffHtmlMovedLeft, movedBlock[m] - 1);
-				}
-				else {
-					blockText += WDiffHtmlCustomize(wDiffHtmlMovedRight, movedBlock[m] - 1);
-				}
-			}
-		}
+      else {
+        if (movedBlock[m] > wDiffStyleBlock.length) {
+          movedBlock[m] = wDiffStyleBlock.length;
+        }
+        if (movedLeft[m]) {
+          blockText += WDiffHtmlCustomize(wDiffHtmlMovedLeft, movedBlock[m] - 1);
+        }
+        else {
+          blockText += WDiffHtmlCustomize(wDiffHtmlMovedRight, movedBlock[m] - 1);
+        }
+      }
+    }
 
 // collect consecutive identical text
-		while ( (i < text.newWords.length) && (j < text.oldWords.length) ) {
-			if ( (text.newToOld[i] == null) || (text.oldToNew[j] == null) ) {
-				break;
-			}
-			if (text.newToOld[i] != j) {
-				break;
-			}
-			identText += text.newWords[i];
-			i ++;
-			j ++;
-		}
+    while ( (i < text.newWords.length) && (j < text.oldWords.length) ) {
+      if ( (text.newToOld[i] == null) || (text.oldToNew[j] == null) ) {
+        break;
+      }
+      if (text.newToOld[i] != j) {
+        break;
+      }
+      identText += text.newWords[i];
+      i ++;
+      j ++;
+    }
 
 // collect consecutive deletions
-		while ( (text.oldToNew[j] == null) && (j < text.oldWords.length) ) {
-			delText += text.oldWords[j];
-			j ++;
-		}
+    while ( (text.oldToNew[j] == null) && (j < text.oldWords.length) ) {
+      delText += text.oldWords[j];
+      j ++;
+    }
 
 // collect consecutive inserts
-		while ( (text.newToOld[i] == null) && (i < text.newWords.length) ) {
-			insText += text.newWords[i];
-			i ++;
-		}
+    while ( (text.newToOld[i] == null) && (i < text.newWords.length) ) {
+      insText += text.newWords[i];
+      i ++;
+    }
 
 // remove leading and trailing similarities between delText and ins from highlighting
-		var preText = '';
-		var postText = '';
-		if (wDiffWordDiff) {
-			if ( (delText != '') && (insText != '') ) {
+    var preText = '';
+    var postText = '';
+    if (wDiffWordDiff) {
+      if ( (delText != '') && (insText != '') ) {
 
 // remove leading similarities
-				while ( delText.charAt(0) == insText.charAt(0) && (delText != '') && (insText != '') ) {
-					preText = preText + delText.charAt(0);
-					delText = delText.substr(1);
-					insText = insText.substr(1);
-				}
+        while ( delText.charAt(0) == insText.charAt(0) && (delText != '') && (insText != '') ) {
+          preText = preText + delText.charAt(0);
+          delText = delText.substr(1);
+          insText = insText.substr(1);
+        }
 
 // remove trailing similarities
-				while ( delText.charAt(delText.length - 1) == insText.charAt(insText.length - 1) && (delText != '') && (insText != '') ) {
-					postText = delText.charAt(delText.length - 1) + postText;
-					delText = delText.substr(0, delText.length - 1);
-					insText = insText.substr(0, insText.length - 1);
-				}
-			}
-		}
+        while ( delText.charAt(delText.length - 1) == insText.charAt(insText.length - 1) && (delText != '') && (insText != '') ) {
+          postText = delText.charAt(delText.length - 1) + postText;
+          delText = delText.substr(0, delText.length - 1);
+          insText = insText.substr(0, insText.length - 1);
+        }
+      }
+    }
 
 // output the identical text, deletions and inserts
 
 // moved from here indicator
-		if (blockText != '') {
-			outText += blockText;
-		}
+    if (blockText != '') {
+      outText += blockText;
+    }
 
 // identical text
-		if (identText != '') {
-			outText += identStart + WDiffEscape(identText);
-		}
-		outText += preText;
+    if (identText != '') {
+      outText += identStart + WDiffEscape(identText);
+    }
+    outText += preText;
 
 // deleted text
-		if (delText != '') {
-			delText = wDiffHtmlDeleteStart + WDiffEscape(delText) + wDiffHtmlDeleteEnd;
-			delText = delText.replace(/\n/g, '<span class="wDiffParagraph"></span><br>');
-			outText += delText;
-		}
+    if (delText != '') {
+      delText = wDiffHtmlDeleteStart + WDiffEscape(delText) + wDiffHtmlDeleteEnd;
+      delText = delText.replace(/\n/g, '<span class="wDiffParagraph"></span><br>');
+      outText += delText;
+    }
 
 // inserted text
-		if (insText != '') {
-			insText = wDiffHtmlInsertStart + WDiffEscape(insText) + wDiffHtmlInsertEnd;
-			insText = insText.replace(/\n/g, '<span class="wDiffParagraph"></span><br>');
-			outText += insText;
-		}
-		outText += postText;
-	} while (i <= text.newWords.length);
+    if (insText != '') {
+      insText = wDiffHtmlInsertStart + WDiffEscape(insText) + wDiffHtmlInsertEnd;
+      insText = insText.replace(/\n/g, '<span class="wDiffParagraph"></span><br>');
+      outText += insText;
+    }
+    outText += postText;
+  } while (i <= text.newWords.length);
 
-	outText += '\n';
-	outText = WDiffHtmlFormat(outText);
+  outText += '\n';
+  outText = WDiffHtmlFormat(outText);
 
-	return(outText);
+  return(outText);
 };
 
 
@@ -959,12 +997,12 @@ window.WDiffToHtml = function(text, block) {
 
 window.WDiffEscape = function(text) {
 
-	text = text.replace(/&/g, '&amp;');
-	text = text.replace(/</g, '&lt;');
-	text = text.replace(/>/g, '&gt;');
-	text = text.replace(/"/g, '&quot;');
+  text = text.replace(/&/g, '&amp;');
+  text = text.replace(/</g, '&lt;');
+  text = text.replace(/>/g, '&gt;');
+  text = text.replace(/"/g, '&quot;');
 
-	return(text);
+  return(text);
 };
 
 
@@ -972,10 +1010,10 @@ window.WDiffEscape = function(text) {
 
 window.WDiffHtmlCustomize = function(text, block) {
 
-	text = text.replace(/\{number\}/, block);
-	text = text.replace(/\{block\}/, wDiffStyleBlock[block]);
+  text = text.replace(/\{number\}/, block);
+  text = text.replace(/\{block\}/, wDiffStyleBlock[block]);
 
-	return(text);
+  return(text);
 };
 
 
@@ -983,10 +1021,10 @@ window.WDiffHtmlCustomize = function(text, block) {
 
 window.WDiffHtmlFormat = function(text) {
 
-	text = text.replace(/ {2}/g, ' &nbsp;');
-	text = text.replace(/\n/g, '<br>');
+  text = text.replace(/ {2}/g, ' &nbsp;');
+  text = text.replace(/\n/g, '<br>');
 
-	return(text);
+  return(text);
 };
 
 
@@ -995,164 +1033,164 @@ window.WDiffHtmlFormat = function(text) {
 
 window.WDiffDetectBlocks = function(text, block) {
 
-	block.oldStart  = [];
-	block.oldToNew  = [];
-	block.oldLength = [];
-	block.oldWords  = [];
-	block.newStart  = [];
-	block.newLength = [];
-	block.newWords  = [];
-	block.newNumber = [];
-	block.newBlock  = [];
-	block.newLeft   = [];
-	block.newRight  = [];
-	block.newLeftIndex  = [];
-	block.newRightIndex = [];
+  block.oldStart  = [];
+  block.oldToNew  = [];
+  block.oldLength = [];
+  block.oldWords  = [];
+  block.newStart  = [];
+  block.newLength = [];
+  block.newWords  = [];
+  block.newNumber = [];
+  block.newBlock  = [];
+  block.newLeft   = [];
+  block.newRight  = [];
+  block.newLeftIndex  = [];
+  block.newRightIndex = [];
 
-	var blockNumber = 0;
-	var wordCounter = 0;
-	var realWordCounter = 0;
+  var blockNumber = 0;
+  var wordCounter = 0;
+  var realWordCounter = 0;
 
 // get old text block order
-	if (wDiffShowBlockMoves) {
-		var j = 0;
-		var i = 0;
-		do {
+  if (wDiffShowBlockMoves) {
+    var j = 0;
+    var i = 0;
+    do {
 
 // detect block boundaries on old text
-			if ( (text.oldToNew[j] != i) || (blockNumber == 0 ) ) {
-				if ( ( (text.oldToNew[j] != null) || (j >= text.oldWords.length) ) && ( (text.newToOld[i] != null) || (i >= text.newWords.length) ) ) {
-					if (blockNumber > 0) {
-						block.oldLength[blockNumber - 1] = wordCounter;
-						block.oldWords[blockNumber - 1] = realWordCounter;
-						wordCounter = 0;
-						realWordCounter = 0;
-					}
+      if ( (text.oldToNew[j] != i) || (blockNumber == 0 ) ) {
+        if ( ( (text.oldToNew[j] != null) || (j >= text.oldWords.length) ) && ( (text.newToOld[i] != null) || (i >= text.newWords.length) ) ) {
+          if (blockNumber > 0) {
+            block.oldLength[blockNumber - 1] = wordCounter;
+            block.oldWords[blockNumber - 1] = realWordCounter;
+            wordCounter = 0;
+            realWordCounter = 0;
+          }
 
-					if (j >= text.oldWords.length) {
-						j ++;
-					}
-					else {
-						i = text.oldToNew[j];
-						block.oldStart[blockNumber] = j;
-						block.oldToNew[blockNumber] = text.oldToNew[j];
-						blockNumber ++;
-					}
-				}
-			}
+          if (j >= text.oldWords.length) {
+            j ++;
+          }
+          else {
+            i = text.oldToNew[j];
+            block.oldStart[blockNumber] = j;
+            block.oldToNew[blockNumber] = text.oldToNew[j];
+            blockNumber ++;
+          }
+        }
+      }
 
 // jump over identical pairs
-			while ( (i < text.newWords.length) && (j < text.oldWords.length) ) {
-				if ( (text.newToOld[i] == null) || (text.oldToNew[j] == null) ) {
-					break;
-				}
-				if (text.oldToNew[j] != i) {
-					break;
-				}
-				i ++;
-				j ++;
-				wordCounter ++;
-				if ( /\w/.test( text.newWords[i] ) ) {
-					realWordCounter ++;
-				}
-			}
+      while ( (i < text.newWords.length) && (j < text.oldWords.length) ) {
+        if ( (text.newToOld[i] == null) || (text.oldToNew[j] == null) ) {
+          break;
+        }
+        if (text.oldToNew[j] != i) {
+          break;
+        }
+        i ++;
+        j ++;
+        wordCounter ++;
+        if ( /\w/.test( text.newWords[i] ) ) {
+          realWordCounter ++;
+        }
+      }
 
 // jump over consecutive deletions
-			while ( (text.oldToNew[j] == null) && (j < text.oldWords.length) ) {
-				j ++;
-			}
+      while ( (text.oldToNew[j] == null) && (j < text.oldWords.length) ) {
+        j ++;
+      }
 
 // jump over consecutive inserts
-			while ( (text.newToOld[i] == null) && (i < text.newWords.length) ) {
-				i ++;
-			}
-		} while (j <= text.oldWords.length);
+      while ( (text.newToOld[i] == null) && (i < text.newWords.length) ) {
+        i ++;
+      }
+    } while (j <= text.oldWords.length);
 
 // get the block order in the new text
-		var lastMin;
-		var currMinIndex;
-		lastMin = null;
+    var lastMin;
+    var currMinIndex;
+    lastMin = null;
 
 // sort the data by increasing start numbers into new text block info
-		for (var i = 0; i < blockNumber; i ++) {
-			currMin = null;
-			for (var j = 0; j < blockNumber; j ++) {
-				curr = block.oldToNew[j];
-				if ( (curr > lastMin) || (lastMin == null) ) {
-					if ( (curr < currMin) || (currMin == null) ) {
-						currMin = curr;
-						currMinIndex = j;
-					}
-				}
-			}
-			block.newStart[i] = block.oldToNew[currMinIndex];
-			block.newLength[i] = block.oldLength[currMinIndex];
-			block.newWords[i] = block.oldWords[currMinIndex];
-			block.newNumber[i] = currMinIndex;
-			lastMin = currMin;
-		}
+    for (var i = 0; i < blockNumber; i ++) {
+      currMin = null;
+      for (var j = 0; j < blockNumber; j ++) {
+        curr = block.oldToNew[j];
+        if ( (curr > lastMin) || (lastMin == null) ) {
+          if ( (curr < currMin) || (currMin == null) ) {
+            currMin = curr;
+            currMinIndex = j;
+          }
+        }
+      }
+      block.newStart[i] = block.oldToNew[currMinIndex];
+      block.newLength[i] = block.oldLength[currMinIndex];
+      block.newWords[i] = block.oldWords[currMinIndex];
+      block.newNumber[i] = currMinIndex;
+      lastMin = currMin;
+    }
 
 // detect not moved blocks
-		for (var i = 0; i < blockNumber; i ++) {
-			if (block.newBlock[i] == null) {
-				if (block.newNumber[i] == i) {
-					block.newBlock[i] = 0;
-				}
-			}
-		}
+    for (var i = 0; i < blockNumber; i ++) {
+      if (block.newBlock[i] == null) {
+        if (block.newNumber[i] == i) {
+          block.newBlock[i] = 0;
+        }
+      }
+    }
 
 // detect switches of neighbouring blocks
-		for (var i = 0; i < blockNumber - 1; i ++) {
-			if ( (block.newBlock[i] == null) && (block.newBlock[i + 1] == null) ) {
-				if (block.newNumber[i] - block.newNumber[i + 1] == 1) {
-					if ( (block.newNumber[i + 1] - block.newNumber[i + 2] != 1) || (i + 2 >= blockNumber) ) {
+    for (var i = 0; i < blockNumber - 1; i ++) {
+      if ( (block.newBlock[i] == null) && (block.newBlock[i + 1] == null) ) {
+        if (block.newNumber[i] - block.newNumber[i + 1] == 1) {
+          if ( (block.newNumber[i + 1] - block.newNumber[i + 2] != 1) || (i + 2 >= blockNumber) ) {
 
 // the shorter one is declared the moved one
-						if (block.newLength[i] < block.newLength[i + 1]) {
-							block.newBlock[i] = 1;
-							block.newBlock[i + 1] = 0;
-						}
-						else {
-							block.newBlock[i] = 0;
-							block.newBlock[i + 1] = 1;
-						}
-					}
-				}
-			}
-		}
+            if (block.newLength[i] < block.newLength[i + 1]) {
+              block.newBlock[i] = 1;
+              block.newBlock[i + 1] = 0;
+            }
+            else {
+              block.newBlock[i] = 0;
+              block.newBlock[i + 1] = 1;
+            }
+          }
+        }
+      }
+    }
 
 // mark all others as moved and number the moved blocks
-		j = 1;
-		for (var i = 0; i < blockNumber; i ++) {
-			if ( (block.newBlock[i] == null) || (block.newBlock[i] == 1) ) {
-				block.newBlock[i] = j++;
-			}
-		}
+    j = 1;
+    for (var i = 0; i < blockNumber; i ++) {
+      if ( (block.newBlock[i] == null) || (block.newBlock[i] == 1) ) {
+        block.newBlock[i] = j++;
+      }
+    }
 
 // check if a block has been moved from this block border
-		for (var i = 0; i < blockNumber; i ++) {
-			for (var j = 0; j < blockNumber; j ++) {
+    for (var i = 0; i < blockNumber; i ++) {
+      for (var j = 0; j < blockNumber; j ++) {
 
-				if (block.newNumber[j] == i) {
-					if (block.newBlock[j] > 0) {
+        if (block.newNumber[j] == i) {
+          if (block.newBlock[j] > 0) {
 
 // block moved right
-						if (block.newNumber[j] < j) {
-							block.newRight[i] = block.newBlock[j];
-							block.newRightIndex[i] = j;
-						}
+            if (block.newNumber[j] < j) {
+              block.newRight[i] = block.newBlock[j];
+              block.newRightIndex[i] = j;
+            }
 
 // block moved left
-						else {
-							block.newLeft[i + 1] = block.newBlock[j];
-							block.newLeftIndex[i + 1] = j;
-						}
-					}
-				}
-			}
-		}
-	}
-	return;
+            else {
+              block.newLeft[i + 1] = block.newBlock[j];
+              block.newLeftIndex[i + 1] = j;
+            }
+          }
+        }
+      }
+    }
+  }
+  return;
 };
 
 
@@ -1163,240 +1201,240 @@ window.WDiffDetectBlocks = function(text, block) {
 window.WDiffShortenOutput = function(diffText) {
 
 // html <br/> to newlines
-	diffText = diffText.replace(/<br[^>]*>/g, '\n');
+  diffText = diffText.replace(/<br[^>]*>/g, '\n');
 
 // scan for diff html tags
-	var regExpDiff = /<\w+ class="(\w+)"[^>]*>(.|\n)*?<!--\1-->/g;
-	var tagStart = [];
-	var tagEnd = [];
-	var i = 0;
-	var found;
-	while ( (found = regExpDiff.exec(diffText)) != null ) {
+  var regExpDiff = /<\w+ class="(\w+)"[^>]*>(.|\n)*?<!--\1-->/g;
+  var tagStart = [];
+  var tagEnd = [];
+  var i = 0;
+  var found;
+  while ( (found = regExpDiff.exec(diffText)) != null ) {
 
 // combine consecutive diff tags
-		if ( (i > 0) && (tagEnd[i - 1] == found.index) ) {
-			tagEnd[i - 1] = found.index + found[0].length;
-		}
-		else {
-			tagStart[i] = found.index;
-			tagEnd[i] = found.index + found[0].length;
-			i ++;
-		}
-	}
+    if ( (i > 0) && (tagEnd[i - 1] == found.index) ) {
+      tagEnd[i - 1] = found.index + found[0].length;
+    }
+    else {
+      tagStart[i] = found.index;
+      tagEnd[i] = found.index + found[0].length;
+      i ++;
+    }
+  }
 
 // no diff tags detected
-	if (tagStart.length == 0) {
-		return(wDiffNoChange);
-	}
+  if (tagStart.length == 0) {
+    return(wDiffNoChange);
+  }
 
 // define regexps
-	var regExpHeading = /\n=+.+?=+ *\n|\n\{\||\n\|\}/g;
-	var regExpParagraph = /\n\n+/g;
-	var regExpLine = /\n+/g;
-	var regExpBlank = /(<[^>]+>)*\s+/g;
+  var regExpHeading = /\n=+.+?=+ *\n|\n\{\||\n\|\}/g;
+  var regExpParagraph = /\n\n+/g;
+  var regExpLine = /\n+/g;
+  var regExpBlank = /(<[^>]+>)*\s+/g;
 
 // determine fragment border positions around diff tags
-	var rangeStart = [];
-	var rangeEnd = [];
-	var rangeStartType = [];
-	var rangeEndType = [];
-	for (var i = 0; i < tagStart.length; i ++) {
-		var found;
+  var rangeStart = [];
+  var rangeEnd = [];
+  var rangeStartType = [];
+  var rangeEndType = [];
+  for (var i = 0; i < tagStart.length; i ++) {
+    var found;
 
 // find last heading before diff tag
-		var lastPos = tagStart[i] - wDiffHeadingBefore;
-		if (lastPos < 0) {
-			lastPos = 0;
-		}
-		regExpHeading.lastIndex = lastPos;
-		while ( (found = regExpHeading.exec(diffText)) != null ) {
-			if (found.index > tagStart[i]) {
-				break;
-			}
-			rangeStart[i] = found.index;
-			rangeStartType[i] = 'heading';
-		}
+    var lastPos = tagStart[i] - wDiffHeadingBefore;
+    if (lastPos < 0) {
+      lastPos = 0;
+    }
+    regExpHeading.lastIndex = lastPos;
+    while ( (found = regExpHeading.exec(diffText)) != null ) {
+      if (found.index > tagStart[i]) {
+        break;
+      }
+      rangeStart[i] = found.index;
+      rangeStartType[i] = 'heading';
+    }
 
 // find last paragraph before diff tag
-		if (rangeStart[i] == null) {
-			lastPos = tagStart[i] - wDiffParagraphBefore;
-			if (lastPos < 0) {
-				lastPos = 0;
-			}
-			regExpParagraph.lastIndex = lastPos;
-			while ( (found = regExpParagraph.exec(diffText)) != null ) {
-				if (found.index > tagStart[i]) {
-					break;
-				}
-				rangeStart[i] = found.index;
-				rangeStartType[i] = 'paragraph';
-			}
-		}
+    if (rangeStart[i] == null) {
+      lastPos = tagStart[i] - wDiffParagraphBefore;
+      if (lastPos < 0) {
+        lastPos = 0;
+      }
+      regExpParagraph.lastIndex = lastPos;
+      while ( (found = regExpParagraph.exec(diffText)) != null ) {
+        if (found.index > tagStart[i]) {
+          break;
+        }
+        rangeStart[i] = found.index;
+        rangeStartType[i] = 'paragraph';
+      }
+    }
 
 // find line break before diff tag
-		if (rangeStart[i] == null) {
-			lastPos = tagStart[i] - wDiffLineBeforeMax;
-			if (lastPos < 0) {
-				lastPos = 0;
-			}
-			regExpLine.lastIndex = lastPos;
-			while ( (found = regExpLine.exec(diffText)) != null ) {
-				if (found.index > tagStart[i] - wDiffLineBeforeMin) {
-					break;
-				}
-				rangeStart[i] = found.index;
-				rangeStartType[i] = 'line';
-			}
-		}
+    if (rangeStart[i] == null) {
+      lastPos = tagStart[i] - wDiffLineBeforeMax;
+      if (lastPos < 0) {
+        lastPos = 0;
+      }
+      regExpLine.lastIndex = lastPos;
+      while ( (found = regExpLine.exec(diffText)) != null ) {
+        if (found.index > tagStart[i] - wDiffLineBeforeMin) {
+          break;
+        }
+        rangeStart[i] = found.index;
+        rangeStartType[i] = 'line';
+      }
+    }
 
 // find blank before diff tag
-		if (rangeStart[i] == null) {
-			lastPos = tagStart[i] - wDiffBlankBeforeMax;
-			if (lastPos < 0) {
-				lastPos = 0;
-			}
-			regExpBlank.lastIndex = lastPos;
-			while ( (found = regExpBlank.exec(diffText)) != null ) {
-				if (found.index > tagStart[i] - wDiffBlankBeforeMin) {
-					break;
-				}
-				rangeStart[i] = found.index;
-				rangeStartType[i] = 'blank';
-			}
-		}
+    if (rangeStart[i] == null) {
+      lastPos = tagStart[i] - wDiffBlankBeforeMax;
+      if (lastPos < 0) {
+        lastPos = 0;
+      }
+      regExpBlank.lastIndex = lastPos;
+      while ( (found = regExpBlank.exec(diffText)) != null ) {
+        if (found.index > tagStart[i] - wDiffBlankBeforeMin) {
+          break;
+        }
+        rangeStart[i] = found.index;
+        rangeStartType[i] = 'blank';
+      }
+    }
 
 // fixed number of chars before diff tag
-		if (rangeStart[i] == null) {
-			rangeStart[i] = tagStart[i] - wDiffCharsBefore;
-			rangeStartType[i] = 'chars';
-			if (rangeStart[i] < 0) {
-				rangeStart[i] = 0;
-			}
-		}
+    if (rangeStart[i] == null) {
+      rangeStart[i] = tagStart[i] - wDiffCharsBefore;
+      rangeStartType[i] = 'chars';
+      if (rangeStart[i] < 0) {
+        rangeStart[i] = 0;
+      }
+    }
 
 // find first heading after diff tag
-		regExpHeading.lastIndex = tagEnd[i];
-		if ( (found = regExpHeading.exec(diffText)) != null ) {
-			if (found.index < tagEnd[i] + wDiffHeadingAfter) {
-				rangeEnd[i] = found.index + found[0].length;
-				rangeEndType[i] = 'heading';
-			}
-		}
+    regExpHeading.lastIndex = tagEnd[i];
+    if ( (found = regExpHeading.exec(diffText)) != null ) {
+      if (found.index < tagEnd[i] + wDiffHeadingAfter) {
+        rangeEnd[i] = found.index + found[0].length;
+        rangeEndType[i] = 'heading';
+      }
+    }
 
 // find first paragraph after diff tag
-		if (rangeEnd[i] == null) {
-			regExpParagraph.lastIndex = tagEnd[i];
-			if ( (found = regExpParagraph.exec(diffText)) != null ) {
-				if (found.index < tagEnd[i] + wDiffParagraphAfter) {
-					rangeEnd[i] = found.index;
-					rangeEndType[i] = 'paragraph';
-				}
-			}
-		}
+    if (rangeEnd[i] == null) {
+      regExpParagraph.lastIndex = tagEnd[i];
+      if ( (found = regExpParagraph.exec(diffText)) != null ) {
+        if (found.index < tagEnd[i] + wDiffParagraphAfter) {
+          rangeEnd[i] = found.index;
+          rangeEndType[i] = 'paragraph';
+        }
+      }
+    }
 
 // find first line break after diff tag
-		if (rangeEnd[i] == null) {
-			regExpLine.lastIndex = tagEnd[i] + wDiffLineAfterMin;
-			if ( (found = regExpLine.exec(diffText)) != null ) {
-				if (found.index < tagEnd[i] + wDiffLineAfterMax) {
-					rangeEnd[i] = found.index;
-					rangeEndType[i] = 'break';
-				}
-			}
-		}
+    if (rangeEnd[i] == null) {
+      regExpLine.lastIndex = tagEnd[i] + wDiffLineAfterMin;
+      if ( (found = regExpLine.exec(diffText)) != null ) {
+        if (found.index < tagEnd[i] + wDiffLineAfterMax) {
+          rangeEnd[i] = found.index;
+          rangeEndType[i] = 'break';
+        }
+      }
+    }
 
 // find blank after diff tag
-		if (rangeEnd[i] == null) {
-			regExpBlank.lastIndex = tagEnd[i] + wDiffBlankAfterMin;
-			if ( (found = regExpBlank.exec(diffText)) != null ) {
-				if (found.index < tagEnd[i] + wDiffBlankAfterMax) {
-					rangeEnd[i] = found.index;
-					rangeEndType[i] = 'blank';
-				}
-			}
-		}
+    if (rangeEnd[i] == null) {
+      regExpBlank.lastIndex = tagEnd[i] + wDiffBlankAfterMin;
+      if ( (found = regExpBlank.exec(diffText)) != null ) {
+        if (found.index < tagEnd[i] + wDiffBlankAfterMax) {
+          rangeEnd[i] = found.index;
+          rangeEndType[i] = 'blank';
+        }
+      }
+    }
 
 // fixed number of chars after diff tag
-		if (rangeEnd[i] == null) {
-			rangeEnd[i] = tagEnd[i] + wDiffCharsAfter;
-			if (rangeEnd[i] > diffText.length) {
-				rangeEnd[i] = diffText.length;
-				rangeEndType[i] = 'chars';
-			}
-		}
-	}
+    if (rangeEnd[i] == null) {
+      rangeEnd[i] = tagEnd[i] + wDiffCharsAfter;
+      if (rangeEnd[i] > diffText.length) {
+        rangeEnd[i] = diffText.length;
+        rangeEndType[i] = 'chars';
+      }
+    }
+  }
 
 // remove overlaps, join close fragments
-	var fragmentStart = [];
-	var fragmentEnd = [];
-	var fragmentStartType = [];
-	var fragmentEndType = [];
-	fragmentStart[0] = rangeStart[0];
-	fragmentEnd[0] = rangeEnd[0];
-	fragmentStartType[0] = rangeStartType[0];
-	fragmentEndType[0] = rangeEndType[0];
-	var j = 1;
-	for (var i = 1; i < rangeStart.length; i ++) {
-		if (rangeStart[i] > fragmentEnd[j - 1] + wDiffFragmentJoin) {
-			fragmentStart[j] = rangeStart[i];
-			fragmentEnd[j] = rangeEnd[i];
-			fragmentStartType[j] = rangeStartType[i];
-			fragmentEndType[j] = rangeEndType[i];
-			j ++;
-		}
-		else {
-			fragmentEnd[j - 1] = rangeEnd[i];
-			fragmentEndType[j - 1] = rangeEndType[i];
-		}
-	}
+  var fragmentStart = [];
+  var fragmentEnd = [];
+  var fragmentStartType = [];
+  var fragmentEndType = [];
+  fragmentStart[0] = rangeStart[0];
+  fragmentEnd[0] = rangeEnd[0];
+  fragmentStartType[0] = rangeStartType[0];
+  fragmentEndType[0] = rangeEndType[0];
+  var j = 1;
+  for (var i = 1; i < rangeStart.length; i ++) {
+    if (rangeStart[i] > fragmentEnd[j - 1] + wDiffFragmentJoin) {
+      fragmentStart[j] = rangeStart[i];
+      fragmentEnd[j] = rangeEnd[i];
+      fragmentStartType[j] = rangeStartType[i];
+      fragmentEndType[j] = rangeEndType[i];
+      j ++;
+    }
+    else {
+      fragmentEnd[j - 1] = rangeEnd[i];
+      fragmentEndType[j - 1] = rangeEndType[i];
+    }
+  }
 
 // assemble the fragments
-	var outText = '';
-	for (var i = 0; i < fragmentStart.length; i ++) {
+  var outText = '';
+  for (var i = 0; i < fragmentStart.length; i ++) {
 
 // get text fragment
-		var fragment = diffText.substring(fragmentStart[i], fragmentEnd[i]);
-		var fragment = fragment.replace(/^\n+|\n+$/g, '');
+    var fragment = diffText.substring(fragmentStart[i], fragmentEnd[i]);
+    var fragment = fragment.replace(/^\n+|\n+$/g, '');
 
 // add inline marks for omitted chars and words
-		if (fragmentStart[i] > 0) {
-			if (fragmentStartType[i] == 'chars') {
-				fragment = wDiffOmittedChars + fragment;
-			}
-			else if (fragmentStartType[i] == 'blank') {
-				fragment = wDiffOmittedChars + ' ' + fragment;
-			}
-		}
-		if (fragmentEnd[i] < diffText.length) {
-			if (fragmentStartType[i] == 'chars') {
-				fragment = fragment + wDiffOmittedChars;
-			}
-			else if (fragmentStartType[i] == 'blank') {
-				fragment = fragment + ' ' + wDiffOmittedChars;
-			}
-		}
+    if (fragmentStart[i] > 0) {
+      if (fragmentStartType[i] == 'chars') {
+        fragment = wDiffOmittedChars + fragment;
+      }
+      else if (fragmentStartType[i] == 'blank') {
+        fragment = wDiffOmittedChars + ' ' + fragment;
+      }
+    }
+    if (fragmentEnd[i] < diffText.length) {
+      if (fragmentStartType[i] == 'chars') {
+        fragment = fragment + wDiffOmittedChars;
+      }
+      else if (fragmentStartType[i] == 'blank') {
+        fragment = fragment + ' ' + wDiffOmittedChars;
+      }
+    }
 
 // add omitted line separator
-		if (fragmentStart[i] > 0) {
-			outText += wDiffOmittedLines;
-		}
+    if (fragmentStart[i] > 0) {
+      outText += wDiffOmittedLines;
+    }
 
 // encapsulate span errors
-		outText += '<div>' + fragment + '</div>';
-	}
+    outText += '<div>' + fragment + '</div>';
+  }
 
 // add trailing omitted line separator
-	if (fragmentEnd[i - 1] < diffText.length) {
-		outText = outText + wDiffOmittedLines;
-	}
+  if (fragmentEnd[i - 1] < diffText.length) {
+    outText = outText + wDiffOmittedLines;
+  }
 
 // remove leading and trailing empty lines
-	outText = outText.replace(/^(<div>)\n+|\n+(<\/div>)$/g, '$1$2');
+  outText = outText.replace(/^(<div>)\n+|\n+(<\/div>)$/g, '$1$2');
 
 // convert to html linebreaks
-	outText = outText.replace(/\n/g, '<br />');
+  outText = outText.replace(/\n/g, '<br />');
 
-	return(outText);
+  return(outText);
 };
 
 </script>
@@ -1489,38 +1527,38 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
  */
 /**
-   * Spyc -- A Simple PHP YAML Class
-   * @version 0.5.1
-   * @author Vlad Andersen <vlad.andersen@gmail.com>
-   * @author Chris Wanstrath <chris@ozmm.org>
-   * @link http://code.google.com/p/spyc/
-   * @copyright Copyright 2005-2006 Chris Wanstrath, 2006-2011 Vlad Andersen
-   * @license http://www.opensource.org/licenses/mit-license.php MIT License
-   * @package Spyc
-   */
+ * Spyc -- A Simple PHP YAML Class
+ * @version 0.5.1
+ * @author Vlad Andersen <vlad.andersen@gmail.com>
+ * @author Chris Wanstrath <chris@ozmm.org>
+ * @link http://code.google.com/p/spyc/
+ * @copyright Copyright 2005-2006 Chris Wanstrath, 2006-2011 Vlad Andersen
+ * @license http://www.opensource.org/licenses/mit-license.php MIT License
+ * @package Spyc
+ */
 
 /**
-   * The Simple PHP YAML Class.
-   *
-   * This class can be used to read a YAML file and convert its contents
-   * into a PHP array.  It currently supports a very limited subsection of
-   * the YAML spec.
-   *
-   * Usage:
-   * <code>
-   *   $Spyc  = new Spyc;
-   *   $array = $Spyc->load($file);
-   * </code>
-   * or:
-   * <code>
-   *   $array = Spyc::YAMLLoad($file);
-   * </code>
-   * or:
-   * <code>
-   *   $array = spyc_load_file($file);
-   * </code>
-   * @package Spyc
-   */
+ * The Simple PHP YAML Class.
+ *
+ * This class can be used to read a YAML file and convert its contents
+ * into a PHP array.  It currently supports a very limited subsection of
+ * the YAML spec.
+ *
+ * Usage:
+ * <code>
+ *   $Spyc  = new Spyc;
+ *   $array = $Spyc->load($file);
+ * </code>
+ * or:
+ * <code>
+ *   $array = Spyc::YAMLLoad($file);
+ * </code>
+ * or:
+ * <code>
+ *   $array = spyc_load_file($file);
+ * </code>
+ * @package Spyc
+ */
 class Spyc {
 
   // SETTINGS
@@ -1545,9 +1583,9 @@ class Spyc {
 
 
   /**#@+
-  * @access private
-  * @var mixed
-  */
+   * @access private
+   * @var mixed
+   */
   private $_dumpIndent;
   private $_dumpWordWrap;
   private $_containsGroupAnchor = false;
@@ -1564,94 +1602,94 @@ class Spyc {
   private $delayedPath = array();
 
   /**#@+
-  * @access public
-  * @var mixed
-  */
+   * @access public
+   * @var mixed
+   */
   public $_nodeId;
 
-/**
- * Load a valid YAML string to Spyc.
- * @param string $input
- * @return array
- */
+  /**
+   * Load a valid YAML string to Spyc.
+   * @param string $input
+   * @return array
+   */
   public function load ($input) {
     return $this->__loadString($input);
   }
 
- /**
- * Load a valid YAML file to Spyc.
- * @param string $file
- * @return array
- */
+  /**
+   * Load a valid YAML file to Spyc.
+   * @param string $file
+   * @return array
+   */
   public function loadFile ($file) {
     return $this->__load($file);
   }
 
   /**
-     * Load YAML into a PHP array statically
-     *
-     * The load method, when supplied with a YAML stream (string or file),
-     * will do its best to convert YAML in a file into a PHP array.  Pretty
-     * simple.
-     *  Usage:
-     *  <code>
-     *   $array = Spyc::YAMLLoad('lucky.yaml');
-     *   print_r($array);
-     *  </code>
-     * @access public
-     * @return array
-     * @param string $input Path of YAML file or string containing YAML
-     */
+   * Load YAML into a PHP array statically
+   *
+   * The load method, when supplied with a YAML stream (string or file),
+   * will do its best to convert YAML in a file into a PHP array.  Pretty
+   * simple.
+   *  Usage:
+   *  <code>
+   *   $array = Spyc::YAMLLoad('lucky.yaml');
+   *   print_r($array);
+   *  </code>
+   * @access public
+   * @return array
+   * @param string $input Path of YAML file or string containing YAML
+   */
   public static function YAMLLoad($input) {
     $Spyc = new Spyc;
     return $Spyc->__load($input);
   }
 
   /**
-     * Load a string of YAML into a PHP array statically
-     *
-     * The load method, when supplied with a YAML string, will do its best
-     * to convert YAML in a string into a PHP array.  Pretty simple.
-     *
-     * Note: use this function if you don't want files from the file system
-     * loaded and processed as YAML.  This is of interest to people concerned
-     * about security whose input is from a string.
-     *
-     *  Usage:
-     *  <code>
-     *   $array = Spyc::YAMLLoadString("---\n0: hello world\n");
-     *   print_r($array);
-     *  </code>
-     * @access public
-     * @return array
-     * @param string $input String containing YAML
-     */
+   * Load a string of YAML into a PHP array statically
+   *
+   * The load method, when supplied with a YAML string, will do its best
+   * to convert YAML in a string into a PHP array.  Pretty simple.
+   *
+   * Note: use this function if you don't want files from the file system
+   * loaded and processed as YAML.  This is of interest to people concerned
+   * about security whose input is from a string.
+   *
+   *  Usage:
+   *  <code>
+   *   $array = Spyc::YAMLLoadString("---\n0: hello world\n");
+   *   print_r($array);
+   *  </code>
+   * @access public
+   * @return array
+   * @param string $input String containing YAML
+   */
   public static function YAMLLoadString($input) {
     $Spyc = new Spyc;
     return $Spyc->__loadString($input);
   }
 
   /**
-     * Dump YAML from PHP array statically
-     *
-     * The dump method, when supplied with an array, will do its best
-     * to convert the array into friendly YAML.  Pretty simple.  Feel free to
-     * save the returned string as nothing.yaml and pass it around.
-     *
-     * Oh, and you can decide how big the indent is and what the wordwrap
-     * for folding is.  Pretty cool -- just pass in 'false' for either if
-     * you want to use the default.
-     *
-     * Indent's default is 2 spaces, wordwrap's default is 40 characters.  And
-     * you can turn off wordwrap by passing in 0.
-     *
-     * @access public
-     * @return string
-     * @param array $array PHP array
-     * @param int $indent Pass in false to use the default, which is 2
-     * @param int $wordwrap Pass in 0 for no wordwrap, false for default (40)
-     * @param int $no_opening_dashes Do not start YAML file with "---\n"
-     */
+   * Dump YAML from PHP array statically
+   *
+   * The dump method, when supplied with an array, will do its best
+   * to convert the array into friendly YAML.  Pretty simple.  Feel free to
+   * save the returned string as nothing.yaml and pass it around.
+   *
+   * Oh, and you can decide how big the indent is and what the wordwrap
+   * for folding is.  Pretty cool -- just pass in 'false' for either if
+   * you want to use the default.
+   *
+   * Indent's default is 2 spaces, wordwrap's default is 40 characters.  And
+   * you can turn off wordwrap by passing in 0.
+   *
+   * @access public
+   * @return string
+   * @param array $array PHP array
+   * @param int $indent Pass in false to use the default, which is 2
+   * @param int $wordwrap Pass in 0 for no wordwrap, false for default (40)
+   * @param int $no_opening_dashes Do not start YAML file with "---\n"
+   */
   public static function YAMLDump($array, $indent = false, $wordwrap = false, $no_opening_dashes = false) {
     $spyc = new Spyc;
     return $spyc->dump($array, $indent, $wordwrap, $no_opening_dashes);
@@ -1659,25 +1697,25 @@ class Spyc {
 
 
   /**
-     * Dump PHP array to YAML
-     *
-     * The dump method, when supplied with an array, will do its best
-     * to convert the array into friendly YAML.  Pretty simple.  Feel free to
-     * save the returned string as tasteful.yaml and pass it around.
-     *
-     * Oh, and you can decide how big the indent is and what the wordwrap
-     * for folding is.  Pretty cool -- just pass in 'false' for either if
-     * you want to use the default.
-     *
-     * Indent's default is 2 spaces, wordwrap's default is 40 characters.  And
-     * you can turn off wordwrap by passing in 0.
-     *
-     * @access public
-     * @return string
-     * @param array $array PHP array
-     * @param int $indent Pass in false to use the default, which is 2
-     * @param int $wordwrap Pass in 0 for no wordwrap, false for default (40)
-     */
+   * Dump PHP array to YAML
+   *
+   * The dump method, when supplied with an array, will do its best
+   * to convert the array into friendly YAML.  Pretty simple.  Feel free to
+   * save the returned string as tasteful.yaml and pass it around.
+   *
+   * Oh, and you can decide how big the indent is and what the wordwrap
+   * for folding is.  Pretty cool -- just pass in 'false' for either if
+   * you want to use the default.
+   *
+   * Indent's default is 2 spaces, wordwrap's default is 40 characters.  And
+   * you can turn off wordwrap by passing in 0.
+   *
+   * @access public
+   * @return string
+   * @param array $array PHP array
+   * @param int $indent Pass in false to use the default, which is 2
+   * @param int $wordwrap Pass in 0 for no wordwrap, false for default (40)
+   */
   public function dump($array,$indent = false,$wordwrap = false, $no_opening_dashes = false) {
     // Dumps to some very clean YAML.  We'll have to add some more features
     // and options soon.  And better support for folding.
@@ -1713,13 +1751,13 @@ class Spyc {
   }
 
   /**
-     * Attempts to convert a key / value array item to YAML
-     * @access private
-     * @return string
-     * @param $key The name of the key
-     * @param $value The value of the item
-     * @param $indent The indent of the current node
-     */
+   * Attempts to convert a key / value array item to YAML
+   * @access private
+   * @return string
+   * @param $key The name of the key
+   * @param $value The value of the item
+   * @param $indent The indent of the current node
+   */
   private function _yamlize($key,$value,$indent, $previous_key = -1, $first_key = 0, $source_array = null) {
     if (is_array($value)) {
       if (empty ($value))
@@ -1739,12 +1777,12 @@ class Spyc {
   }
 
   /**
-     * Attempts to convert an array to YAML
-     * @access private
-     * @return string
-     * @param $array The array you want to convert
-     * @param $indent The indent of the current level
-     */
+   * Attempts to convert an array to YAML
+   * @access private
+   * @return string
+   * @param $array The array you want to convert
+   * @param $indent The indent of the current level
+   */
   private function _yamlizeArray($array,$indent) {
     if (is_array($array)) {
       $string = '';
@@ -1761,13 +1799,13 @@ class Spyc {
   }
 
   /**
-     * Returns YAML from a key and a value
-     * @access private
-     * @return string
-     * @param $key The name of the key
-     * @param $value The value of the item
-     * @param $indent The indent of the current node
-     */
+   * Returns YAML from a key and a value
+   * @access private
+   * @return string
+   * @param $key The name of the key
+   * @param $value The value of the item
+   * @param $indent The indent of the current node
+   */
   private function _dumpNode($key, $value, $indent, $previous_key = -1, $first_key = 0, $source_array = null) {
     // do some folding here, for blocks
     if (is_string ($value) && ((strpos($value,"\n") !== false || strpos($value,": ") !== false || strpos($value,"- ") !== false ||
@@ -1811,12 +1849,12 @@ class Spyc {
   }
 
   /**
-     * Creates a literal block for dumping
-     * @access private
-     * @return string
-     * @param $value
-     * @param $indent int The value of the indent
-     */
+   * Creates a literal block for dumping
+   * @access private
+   * @return string
+   * @param $value
+   * @param $indent int The value of the indent
+   */
   private function _doLiteralBlock($value,$indent) {
     if ($value === "\n") return '\n';
     if (strpos($value, "\n") === false && strpos($value, "'") === false) {
@@ -1836,11 +1874,11 @@ class Spyc {
   }
 
   /**
-     * Folds a string of text, if necessary
-     * @access private
-     * @return string
-     * @param $value The string you wish to fold
-     */
+   * Folds a string of text, if necessary
+   * @access private
+   * @return string
+   * @param $value The string you wish to fold
+   */
   private function _doFolding($value,$indent) {
     // Don't do anything if wordwrap is set to 0
 
@@ -1884,12 +1922,12 @@ class Spyc {
   }
 
   /**
-     * Coerce a string into a native type
-     * Reference: http://yaml.org/type/bool.html
-     * TODO: Use only words from the YAML spec.
-     * @access private
-     * @param $value The value to coerce
-     */
+   * Coerce a string into a native type
+   * Reference: http://yaml.org/type/bool.html
+   * TODO: Use only words from the YAML spec.
+   * @access private
+   * @param $value The value to coerce
+   */
   private function coerceValue(&$value) {
     if (self::isTrueWord($value)) {
       $value = true;
@@ -1901,11 +1939,11 @@ class Spyc {
   }
 
   /**
-     * Given a set of words, perform the appropriate translations on them to
-     * match the YAML 1.1 specification for type coercing.
-     * @param $words The words to translate
-     * @access private
-     */
+   * Given a set of words, perform the appropriate translations on them to
+   * match the YAML 1.1 specification for type coercing.
+   * @param $words The words to translate
+   * @access private
+   */
   private static function getTranslations(array $words) {
     $result = array();
     foreach ($words as $i) {
@@ -1914,7 +1952,7 @@ class Spyc {
     return $result;
   }
 
-// LOADING FUNCTIONS
+  // LOADING FUNCTIONS
 
   private function __load($input) {
     $Source = $this->loadFromSource($input);
@@ -1961,7 +1999,7 @@ class Spyc {
 
       // Strip out comments
       if (strpos ($line, '#')) {
-          $line = preg_replace('/\s*#([^"\']+)$/','',$line);
+        $line = preg_replace('/\s*#([^"\']+)$/','',$line);
       }
 
       while (++$i < $cnt && self::greedilyNeedNextLine($line)) {
@@ -2001,11 +2039,11 @@ class Spyc {
   }
 
   /**
-     * Parses YAML code and returns an array for a node
-     * @access private
-     * @return array
-     * @param string $line A line from the YAML file
-     */
+   * Parses YAML code and returns an array for a node
+   * @access private
+   * @return array
+   * @param string $line A line from the YAML file
+   */
   private function _parseLine($line) {
     if (!$line) return array();
     $line = trim($line);
@@ -2037,11 +2075,11 @@ class Spyc {
   }
 
   /**
-     * Finds the type of the passed value, returns the value as the new type.
-     * @access private
-     * @param string $value
-     * @return mixed
-     */
+   * Finds the type of the passed value, returns the value as the new type.
+   * @access private
+   * @param string $value
+   * @return mixed
+   */
   private function _toType($value) {
     if ($value === '') return "";
     $first_character = $value[0];
@@ -2133,10 +2171,10 @@ class Spyc {
   }
 
   /**
-     * Used in inlines to check for more inlines or quoted strings
-     * @access private
-     * @return array
-     */
+   * Used in inlines to check for more inlines or quoted strings
+   * @access private
+   * @return array
+   */
   private function _inlineEscape($inline) {
     // There's gotta be a cleaner way to do this...
     // While pure sequences seem to be nesting just fine,
@@ -2296,7 +2334,7 @@ class Spyc {
 
   private function addArray ($incoming_data, $incoming_indent) {
 
-   // print_r ($incoming_data);
+    // print_r ($incoming_data);
 
     if (count ($incoming_data) > 1)
       return $this->addArrayInline ($incoming_data, $incoming_indent);
@@ -2411,7 +2449,7 @@ class Spyc {
       if (is_array($_))
         $lineArray[$k] = $this->revertLiteralPlaceHolder ($_, $literalBlock);
       else if (substr($_, -1 * strlen ($this->LiteralPlaceHolder)) == $this->LiteralPlaceHolder)
-	       $lineArray[$k] = rtrim ($literalBlock, " \r\n");
+        $lineArray[$k] = rtrim ($literalBlock, " \r\n");
      }
      return $lineArray;
    }
@@ -2594,7 +2632,7 @@ class Spyc {
 // This is for loading the graphics.
 
 function get_fav_icon() {
-	$output = <<<'EOF'
+  $output = <<<'EOF'
 AAABAAEAEBAAAAEAIABoBAAAFgAAACgAAAAQAAAAIAAAAAEAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 AAAAAAAAqWVHAAAAAAAAAAAAp2FDM6ZfQaqvb1HzvYlr/72Jav+ub1HzpV5Ap6dhQzMAAAAAAAAAAKhl
 RwAAAAAAAAAAAAAAAACfVjgRrGpMnMWWeP/w5MT////p////5P///t7////j//DjxP/Flnj/q2lLk6Nc
@@ -2616,145 +2654,180 @@ AAAAAAAAlkQmFrF0VZTFl3j/6ti5////5P///+n////p/+z85/+pwsT/Zp+//0658P9Pv/j/UMH5qVK/
 +EtRwPgE+B8AAOAHAADAAwAAgAEAAIABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAAgAEAAMAD
 AADgAQAA+B8AAA==
 EOF;
-	return base64_decode($output);
+  return base64_decode($output);
 }
 function get_header() {
-	$output = <<<'EOF'
-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
-YII=
+  $output = <<<'EOF'
+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
 EOF;
-	return base64_decode($output);
+  return base64_decode($output);
 }
