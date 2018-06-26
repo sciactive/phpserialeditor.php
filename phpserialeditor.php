@@ -102,6 +102,9 @@ if (!empty($_REQUEST['type'])) {
       <script src="https://cdnjs.cloudflare.com/ajax/libs/pnotify/1.3.1/jquery.pnotify.min.js"></script>
     <?php } ?>
     <script type="text/javascript">
+      var wikEdDiffConfig; if (wikEdDiffConfig === undefined) { wikEdDiffConfig = {}; }
+      wikEdDiffConfig.fullDiff = true;
+
       $(function(){
         var updating = false, original = '';
         var diff = $('#diff'), output = $('#output');
@@ -118,7 +121,7 @@ if (!empty($_REQUEST['type'])) {
         });
         $('input[name=language]').on('change', function(){
           serialized.trigger('change');
-        })
+        });
         var editor = $('#editor').on('change keyup', function(){
           if (updating)
             return;
@@ -126,8 +129,8 @@ if (!empty($_REQUEST['type'])) {
             updating = true;
             output.val(data);
             var wikEdDiff = new WikEdDiff();
-            var diffHtml = wikEdDiff.diff(original, data);
-            diff.html(pretty_php_serialized(diffHtml));
+            var diffHtml = wikEdDiff.diff(pretty_php_serialized(original), pretty_php_serialized(data));
+            diff.html(diffHtml);
             updating = false;
           });
         });
@@ -136,35 +139,35 @@ if (!empty($_REQUEST['type'])) {
 
       function pretty_php_serialized(serialized) {
         serialized = serialized.replace(/<br\/?>/g, '').replace(/&([a-z0-9#]+);/gi, '**ent($1)ent**');
-        while (serialized.match(/\{[^\n]/)!==null) {
+        while (serialized.match(/\{[^\n]/) !== null) {
           serialized = serialized.replace(/\{([^\n])/g, '{\n$1');
         }
-        while (serialized.match(/\}[^\n]/)!==null) {
+        while (serialized.match(/\}[^\n]/) !== null) {
           serialized = serialized.replace(/\}([^\n])/g, '}\n$1');
         }
-        while (serialized.match(/[^\n]\}/)!==null) {
+        while (serialized.match(/[^\n]\}/) !== null) {
           serialized = serialized.replace(/([^\n])\}/g, '$1\n}');
         }
-        while (serialized.match(/;[^\n]/)!==null) {
+        while (serialized.match(/;[^\n]/) !== null) {
           serialized = serialized.replace(/;([^\n])/g, ';\n$1');
         }
-        while (serialized.match(/\{\n\}/)!==null) {
+        while (serialized.match(/\{\n\}/) !== null) {
           serialized = serialized.replace(/\{\n\}/g, '{}');
         }
         var cur_indent = 1;
         var cur_entry_index = false;
         var lines = serialized.split('\n');
         serialized = '';
-        for (var i=0; i<lines.length; i++) {
+        for (var i = 0; i < lines.length; i++) {
           var is_a_closer = lines[i].charAt(0) == '}';
           if (is_a_closer) {
             cur_indent--;
-            serialized += Array(cur_indent).join('  ')+lines[i]+'\n';
+            serialized += Array(cur_indent).join('  ') + lines[i] + '\n';
           } else {
             if (cur_entry_index) {
-              serialized += Array(cur_indent).join('  ')+lines[i];
+              serialized += Array(cur_indent).join('  ') + lines[i];
             } else {
-              serialized += lines[i]+'\n';
+              serialized += lines[i] + '\n';
             }
             cur_entry_index = !cur_entry_index;
           }
@@ -259,7 +262,7 @@ if (!empty($_REQUEST['type'])) {
           </div>
         </div>
       </div>
-      <div class="row" style="height: 20vh;">
+      <div class="row" style="height: 200px;">
         <div class="col-sm-6" style="display: flex; flex-direction: column; height: 100%;">
           <div>1. Paste in serialized PHP here: <small>(<a href="javascript:void(0);" onclick="do_example();">example</a>)</small></div>
           <textarea rows="6" cols="30" id="serialized" style="width: 100%; flex-grow: 1;"></textarea>
@@ -269,7 +272,7 @@ if (!empty($_REQUEST['type'])) {
           <textarea rows="6" cols="30" id="output" style="width: 100%; flex-grow: 1;"></textarea>
         </div>
       </div>
-      <div class="row" style="height: 75vh;">
+      <div class="row" style="height: 600px; max-height: 60vh;">
         <div class="col-sm-6" style="display: flex; flex-direction: column; height: 100%;">
           <div>2. Then edit the value here:</div>
           <textarea rows="20" cols="30" id="editor" style="width: 100%; flex-grow: 1;"></textarea>
