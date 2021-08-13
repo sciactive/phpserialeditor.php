@@ -102,8 +102,18 @@ if (!empty($_REQUEST['type'])) {
       <script src="https://cdnjs.cloudflare.com/ajax/libs/pnotify/1.3.1/jquery.pnotify.min.js"></script>
     <?php } ?>
     <script type="text/javascript">
-      var wikEdDiffConfig; if (wikEdDiffConfig === undefined) { wikEdDiffConfig = {}; }
+      wikEdDiffConfig = {
+        regExp: {}
+      };
       wikEdDiffConfig.fullDiff = true;
+      wikEdDiffConfig.showBlockMoves = false;
+      wikEdDiffConfig.regExp.split = {
+        paragraph: /(\w*)(?:(?:[sidb]:[0-9#]+:.*?|N);  )?(?:[sidb]:[0-9#]+:.*?;|N;|[aO]:.*?\{(?:\}|.*\n\1\}))/g,
+        // line: /\n/g,
+        // sentence: /(\w*)(?:(?:[sidb]:[0-9#]+:.*?|N);  )?(?:[sidb]:[0-9#]+:.*?;|N;|[aO]:.*?\{(?:\}|.*\n\1\}))/g, // /(?:[sidb]:[0-9#]+:.*?|N);  (?:[sidb]:[0-9#]+:.*?|N);/g,
+        // word: /(?:[sidb]:[0-9#]+:.*?|N);/g,
+        // character: /./g
+      };
 
       $(function(){
         var updating = false, original = '';
@@ -138,7 +148,7 @@ if (!empty($_REQUEST['type'])) {
       });
 
       function pretty_php_serialized(serialized) {
-        serialized = serialized.replace(/<br\/?>/g, '').replace(/&([a-z0-9#]+);/gi, '**ent($1)ent**');
+        serialized = serialized.replace(/<br\/?>/g, '').replace(/\n/g, '').replace(/&([a-z0-9#]+);/gi, '**ent($1)ent**');
         while (serialized.match(/\{[^\n]/) !== null) {
           serialized = serialized.replace(/\{([^\n])/g, '{\n$1');
         }
@@ -157,17 +167,18 @@ if (!empty($_REQUEST['type'])) {
         var cur_indent = 1;
         var cur_entry_index = false;
         var lines = serialized.split('\n');
+        var is_a_closer;
         serialized = '';
         for (var i = 0; i < lines.length; i++) {
-          var is_a_closer = lines[i].charAt(0) == '}';
+          is_a_closer = lines[i].charAt(0) == '}';
           if (is_a_closer) {
             cur_indent--;
             serialized += Array(cur_indent).join('  ') + lines[i] + '\n';
           } else {
             if (cur_entry_index) {
-              serialized += Array(cur_indent).join('  ') + lines[i];
+              serialized += Array(cur_indent).join('  ') + lines[i].replace(/^i:\d+;$/g, 'i:#;');
             } else {
-              serialized += lines[i] + '\n';
+              serialized += (i === 0 ? '' : '  ') + lines[i] + '\n';
             }
             cur_entry_index = !cur_entry_index;
           }
